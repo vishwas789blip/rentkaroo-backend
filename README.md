@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PG Booking Platform - Backend
 
 Production-ready SaaS PG Booking Platform backend built with Node.js, Express.js, and MongoDB.
@@ -210,3 +211,7 @@ API can be tested using:
 - Wishlist feature
 - SMS notifications
 - Advanced search filters
+=======
+# rentkaroo-backend
+thiis my new project this i am build
+>>>>>>> 790eefe96c0404508322472021b5f77ce2596525
