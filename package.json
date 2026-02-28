@@ -1,0 +1,42 @@
+{
+  "name": "pg-booking-backend",
+  "version": "1.0.0",
+  "description": "Production-ready SaaS PG Booking Platform Backend",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "keywords": [
+    "PG",
+    "Booking",
+    "MERN",
+    "SaaS"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cloudinary": "^1.41.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "cros": "^1.1.0",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "express-async-errors": "^3.1.1",
+    "express-rate-limit": "^6.7.0",
+    "express-validator": "^7.3.1",
+    "helmet": "^7.2.0",
+    "joi": "^17.13.3",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^7.8.9",
+    "morgan": "^1.10.1",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "nodemon": "^2.0.22"
+  }
+}
