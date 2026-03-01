@@ -1,6 +1,5 @@
 import dotenv from "dotenv";
 dotenv.config();  
-console.log("API KEY:", process.env.CLOUDINARY_API_KEY);
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -26,14 +25,28 @@ const PORT = process.env.PORT || 5000;
 
 // Security
 app.use(helmet());
+const allowedOrigins = [
+  "http://localhost:5173",
+  "https://rentkaroo-frontend.vercel.app",
+  "https://rentkaroo-frontend-5wai0vgnw.vercel.app",
+  "https://rentkaroo-frontend-git-main-vishwasprajapati7980-7769s-projects.vercel.app"
+];
 
-app.use(cors({
-  origin: [
-    "http://localhost:5173",
-    "https://rentkaroo-frontend.vercel.app"
-  ],
-  credentials: true
-}));
+const corsOptions = {
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(null, false);
+    }
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
