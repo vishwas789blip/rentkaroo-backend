@@ -28,10 +28,12 @@ const PORT = process.env.PORT || 5000;
 app.use(helmet());
 
 app.use(cors({
-  origin: 'http://localhost:5173', // Allow your frontend origin
-  credentials: true,               // Allow cookies/auth headers
+  origin: [
+    "http://localhost:5173",
+    "https://rentkaroo-frontend.vercel.app"
+  ],
+  credentials: true
 }));
-
 
 if (process.env.NODE_ENV === 'development') {
   app.use(morgan('dev'));
