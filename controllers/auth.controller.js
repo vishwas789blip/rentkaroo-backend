@@ -128,7 +128,7 @@ export const changePassword = async (req, res) => {
   }
 
   const user = await AuthService.changePassword(
-    req.user.id,
+    req.user._id,
     value.oldPassword,
     value.newPassword
   );
@@ -152,7 +152,7 @@ export const getCurrentUser = async (req, res) => {
 // ================= LOGOUT =================
 
 export const logout = async (req, res) => {
-  await AuthService.logout(req.user.id);
+  await AuthService.logout(req.user._id);
 
   res.status(200).json({
     success: true,

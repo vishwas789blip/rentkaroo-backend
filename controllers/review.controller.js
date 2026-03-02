@@ -7,16 +7,9 @@ import { validate } from '../utils/validate.js';
 // ===============================
 
 const createReviewSchema = Joi.object({
-  bookingId: Joi.string().required(),
+  listingId: Joi.string().required(),
   rating: Joi.number().min(1).max(5).required(),
-  title: Joi.string().max(100).required(),
-  comment: Joi.string().min(10).max(1000).required(),
-  categories: Joi.object({
-    cleanliness: Joi.number().min(1).max(5).required(),
-    communication: Joi.number().min(1).max(5).required(),
-    checkinProcess: Joi.number().min(1).max(5).required(),
-    value: Joi.number().min(1).max(5).required()
-  }).required()
+  comment: Joi.string().min(10).max(1000).required()
 });
 
 // ===============================
@@ -55,7 +48,7 @@ export const createReview = async (req, res) => {
 
     const review = await ReviewService.createReview(
       value,
-      req.user.id
+      req.user._id
     );
 
     res.status(201).json({
@@ -81,7 +74,7 @@ export const deleteReview = async (req, res) => {
   try {
     await ReviewService.deleteReview(
       req.params.id,
-      req.user.id
+      req.user._id
     );
 
     res.status(200).json({
