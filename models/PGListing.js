@@ -68,6 +68,16 @@ const pgListingSchema = new mongoose.Schema(
       }
     ],
 
+    averageRating: {
+    type: Number,
+    default: 0
+},
+
+totalReviews: {
+  type: Number,
+  default: 0
+},
+
     isDeleted: {
       type: Boolean,
       default: false

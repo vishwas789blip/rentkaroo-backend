@@ -21,6 +21,13 @@ export class PGListingService {
     return listing;
   }
 
+  static async getOwnerListings(ownerId) {
+  return PGListing.find({
+    owner: ownerId,
+    isDeleted: { $ne: true }
+  });
+  }
+
   static async deleteListing(id, ownerId) {
     const listing = await PGListing.findById(id);
 
