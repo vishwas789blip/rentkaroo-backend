@@ -23,7 +23,7 @@ export const createBooking = async (req, res) => {
 
   const booking = await BookingService.createBooking(
     value,
-    req.user._id
+    req.user.id
   );
 
   res.status(201).json({
@@ -36,7 +36,7 @@ export const createBooking = async (req, res) => {
 // ================= USER BOOKINGS =================
 export const getUserBookings = async (req, res) => {
   const bookings = await BookingService.getUserBookings(
-    req.user._id
+    req.user.id
   );
 
   res.status(200).json({
@@ -48,7 +48,7 @@ export const getUserBookings = async (req, res) => {
 // ================= OWNER BOOKINGS =================
 export const getOwnerBookings = async (req, res) => {
   const bookings = await BookingService.getOwnerBookings(
-    req.user._id
+    req.user.id
   );
 
   res.status(200).json({
@@ -61,7 +61,7 @@ export const getOwnerBookings = async (req, res) => {
 export const getBooking = async (req, res) => {
   const booking = await BookingService.getBookingById(
     req.params.id,
-    req.user._id,
+    req.user.id,
     req.user.role
   );
 
@@ -75,7 +75,7 @@ export const getBooking = async (req, res) => {
 export const approveBooking = async (req, res) => {
   const booking = await BookingService.approveBooking(
     req.params.id,
-    req.user._id
+    req.user.id
   );
 
   res.status(200).json({
@@ -89,7 +89,7 @@ export const approveBooking = async (req, res) => {
 export const rejectBooking = async (req, res) => {
   const booking = await BookingService.rejectBooking(
     req.params.id,
-    req.user._id,
+    req.user.id,
     req.body.rejectionReason
   );
 
@@ -104,7 +104,7 @@ export const rejectBooking = async (req, res) => {
 export const cancelBooking = async (req, res) => {
   const booking = await BookingService.cancelBooking(
     req.params.id,
-    req.user._id
+    req.user.id
   );
 
   res.status(200).json({
@@ -117,7 +117,7 @@ export const cancelBooking = async (req, res) => {
 // ================= ANALYTICS =================
 export const getOwnerAnalytics = async (req, res) => {
   const analytics = await BookingService.getOwnerAnalytics(
-    req.user._id
+    req.user.id
   );
 
   res.status(200).json({

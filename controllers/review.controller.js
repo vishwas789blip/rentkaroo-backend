@@ -48,7 +48,7 @@ export const createReview = async (req, res) => {
 
     const review = await ReviewService.createReview(
       value,
-      req.user._id
+      req.user.id
     );
 
     res.status(201).json({
@@ -74,7 +74,7 @@ export const deleteReview = async (req, res) => {
   try {
     await ReviewService.deleteReview(
       req.params.id,
-      req.user._id
+      req.user.id
     );
 
     res.status(200).json({

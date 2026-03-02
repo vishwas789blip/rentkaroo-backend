@@ -73,7 +73,7 @@ export const createListing = async (req, res) => {
     // 4. Save to Database
     const listing = await PGListingService.createListing(
       { ...value, images },
-      req.user._id
+      req.user.id
     );
 
     res.status(201).json({
@@ -112,7 +112,7 @@ export const getListings = async (req, res) => {
 
 export const getOwnerListings = async (req, res) => {
     console.log("User object:", req.user);
-  const listings = await PGListingService.getOwnerListings(req.user._id);
+  const listings = await PGListingService.getOwnerListings(req.user.id);
 
   res.status(200).json({
     success: true,
@@ -132,7 +132,7 @@ export const getListing = async (req, res) => {
 };
 
 export const deleteListing = async (req, res) => {
-  await PGListingService.deleteListing(req.params.id, req.user._id);
+  await PGListingService.deleteListing(req.params.id, req.user.id);
 
   res.status(200).json({
     success: true,
