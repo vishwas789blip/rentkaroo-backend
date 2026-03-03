@@ -10,7 +10,7 @@ const router = express.Router();
 router.post('/register', authLimiter, asyncWrapper(authController.register));
 router.post('/login', authLimiter, asyncWrapper(authController.login));
 router.post('/refresh-token', asyncWrapper(authController.refreshToken));
-router.get('/verify-email/:userId', asyncWrapper(authController.verifyEmail));
+router.get('/verify-email/:token', asyncWrapper(authController.verifyEmail));
 
 // Protected Routes
 router.post('/change-password', authenticate, asyncWrapper(authController.changePassword));

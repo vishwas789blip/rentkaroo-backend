@@ -1,5 +1,8 @@
-import Joi from 'joi';
-import { AuthService } from '../services/auth.service.js';
+import Joi from "joi";
+import crypto from "crypto";
+import User from "../models/User.js";
+import { AuthService } from "../services/auth.service.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 // ================= VALIDATION SCHEMAS =================
 
@@ -39,21 +42,58 @@ export const register = async (req, res) => {
   const { error, value } = registerSchema.validate(req.body, { abortEarly: false });
 
   if (error) {
-    const err = new Error(error.details.map(d => d.message).join(', '));
+    const err = new Error(error.details.map(d => d.message).join(", "));
     err.statusCode = 400;
     throw err;
   }
 
-const result = await AuthService.register({
-  ...value,
-  role: value.role || 'user'
-});
+  const { name, email, phone, password, role } = value;
+
+  // Check existing user
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    return res.status(400).json({
+      success: false,
+      message: "Email already registered"
+    });
+  }
+
+  // Create user
+  const user = await User.create({
+    name,
+    email,
+    phone,
+    password,
+    role,
+    isVerified: false
+  });
+
+  // Generate token
+  const verificationToken = crypto.randomBytes(32).toString("hex");
+
+  user.verificationToken = verificationToken;
+  user.verificationTokenExpiry = Date.now() + 3600000; // 1 hour
+  await user.save();
+
+  // Send email
+  await sendEmail(
+    user.email,
+    "Verify Your Email - RentKaroo",
+    `
+      <h2>Welcome to RentKaroo</h2>
+      <p>Please verify your email by clicking below:</p>
+      <a href="${process.env.FRONTEND_URL}/verify-email/${verificationToken}">
+        Verify Email
+      </a>
+    `
+  );
+
   res.status(201).json({
     success: true,
-    message: 'User registered successfully',
-    data: result
+    message: "Registration successful. Please verify your email."
   });
 };
+
 
 // ================= LOGIN =================
 
@@ -98,14 +138,29 @@ export const refreshToken = async (req, res) => {
 // ================= VERIFY EMAIL =================
 
 export const verifyEmail = async (req, res) => {
-  const { userId } = req.params;
+  const { token } = req.params;
 
-  const user = await AuthService.verifyEmail(userId);
+  const user = await User.findOne({
+    verificationToken: token,
+    verificationTokenExpiry: { $gt: Date.now() }
+  });
+
+  if (!user) {
+    return res.status(400).json({
+      success: false,
+      message: "Invalid or expired token"
+    });
+  }
+
+  user.isVerified = true;
+  user.verificationToken = undefined;
+  user.verificationTokenExpiry = undefined;
+
+  await user.save();
 
   res.status(200).json({
     success: true,
-    message: 'Email verified successfully',
-    data: { user: user.toJSON() }
+    message: "Email verified successfully"
   });
 };
 
@@ -152,3 +207,7 @@ export const logout = async (req, res) => {
     message: 'Logged out successfully'
   });
 };
+
+
+
+

@@ -53,24 +53,29 @@ export class AuthService {
     };
   }
 
-  static async login(email, password) {
-    const user = await User.findOne({ email }).select('+password');
+static async login(email, password) {
+  const user = await User.findOne({ email }).select('+password');
 
-    if (!user || !user.isActive) {
-      throw new APIError('Invalid credentials', 401);
-    }
-
-    const isMatch = await user.matchPassword(password);
-    if (!isMatch) {
-      throw new APIError('Invalid credentials', 401);
-    }
-
-    return {
-      user: user.toJSON(),
-      accessToken: this.generateToken(user),
-      refreshToken: this.generateToken(user, 'refresh')
-    };
+  if (!user || !user.isActive) {
+    throw new APIError('Invalid credentials', 401);
   }
+
+  // ✅ EMAIL VERIFICATION CHECK
+  if (!user.isVerified) {
+    throw new APIError('Please verify your email first', 403);
+  }
+
+  const isMatch = await user.matchPassword(password);
+  if (!isMatch) {
+    throw new APIError('Invalid credentials', 401);
+  }
+
+  return {
+    user: user.toJSON(),
+    accessToken: this.generateToken(user),
+    refreshToken: this.generateToken(user, 'refresh')
+  };
+}
 
   static async refreshToken(token) {
     try {

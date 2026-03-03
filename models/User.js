@@ -40,10 +40,12 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: true
     },
-    emailVerified: {
+    isVerified: {
       type: Boolean,
       default: false
-    },
+    },  
+    verificationToken: String,
+    verificationTokenExpiry: Date,
     isDeleted: {
       type: Boolean,
       default: false
