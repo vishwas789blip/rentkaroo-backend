@@ -15,15 +15,8 @@ const registerSchema = Joi.object({
   password: Joi.string().min(6).required(),
 
   role: Joi.string()
-    .valid('user', 'pg_owner')
-    .default("user"),
-
-  address: Joi.object({
-    street: Joi.string().allow(''),
-    city: Joi.string().allow(''),
-    state: Joi.string().allow(''),
-    pinCode: Joi.string().allow('')
-  }).optional()
+    .valid("user", "pg_owner")
+    .default("user")
 });
 
 const loginSchema = Joi.object({

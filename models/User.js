@@ -36,12 +36,6 @@ const userSchema = new mongoose.Schema(
       url: String,
       publicId: String
     },
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      zipCode: String
-    },
     isActive: {
       type: Boolean,
       default: true

@@ -8,7 +8,16 @@ export class PGListingService {
   }
 
   static async getListings(query) {
-    return PGListing.find({ isDeleted: { $ne: true } });
+  const filter = { isDeleted: { $ne: true } };
+
+  if (query.location) {
+    filter.$or = [
+      { "address.city": { $regex: query.location, $options: "i" } },
+      { "address.state": { $regex: query.location, $options: "i" } }
+    ];
+  }
+
+  return PGListing.find(filter);
   }
 
   static async getListingById(id) {

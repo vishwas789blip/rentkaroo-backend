@@ -1,12 +1,10 @@
 import mongoose from 'mongoose';
 import Review from '../models/Review.js';
-import Booking from '../models/Booking.js';
-import PGListing from '../models/PGListing.js';
+import PGListing from '../models/PGListing.js'; // Booking import ki zaroorat nahi ab
 import { APIError } from '../middleware/errorHandler.js';
 
 export class ReviewService {
 
-  // ✅ ADD THIS METHOD (Missing earlier)
   static async getReviewsByListing(listingId) {
     return await Review.find({
       pgListing: listingId,
@@ -17,29 +15,34 @@ export class ReviewService {
   }
 
   static async createReview(data, userId) {
-    const booking = await Booking.findById(data.bookingId);
-
-    if (!booking || booking.user.toString() !== userId) {
-      throw new APIError('Unauthorized review', 403);
+    // 1. Check karein ki listing exist karti hai ya nahi
+    const listing = await PGListing.findById(data.listingId);
+    if (!listing) {
+      throw new APIError('Listing not found', 404);
     }
 
-    if (booking.status !== 'completed') {
-      throw new APIError('Can review only completed bookings', 400);
-    }
-
-    const exists = await Review.findOne({ booking: booking._id });
+    // 2. Check karein ki kya user ne pehle hi is listing par review diya hai (Optional)
+    const exists = await Review.findOne({ 
+      user: userId, 
+      pgListing: data.listingId,
+      isDeleted: false 
+    });
+    
     if (exists) {
-      throw new APIError('Review already exists', 400);
+      throw new APIError('You have already reviewed this listing', 400);
     }
 
+    // 3. Review create karein (Ab bookingId ki zaroorat nahi)
     const review = await Review.create({
-      ...data,
+      rating: data.rating,
+      comment: data.comment,
       user: userId,
-      pgListing: booking.pgListing,
-      pgOwner: booking.pgOwner
+      pgListing: data.listingId,
+      pgOwner: listing.owner // Listing model se owner le rahe hain
     });
 
-    await this.updateListingRating(booking.pgListing);
+    // 4. Listing ki average rating update karein
+    await this.updateListingRating(data.listingId);
 
     return review;
   }
