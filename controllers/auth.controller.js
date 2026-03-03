@@ -166,26 +166,28 @@ export const verifyEmail = async (req, res) => {
 
 // ================= CHANGE PASSWORD =================
 
-export const changePassword = async (req, res) => {
-  const { error, value } = changePasswordSchema.validate(req.body);
+export const forgotPassword = async (req, res) => {
+  const { email } = req.body;
+  const user = await User.findOne({ email });
 
-  if (error) {
-    const err = new Error(error.details[0].message);
-    err.statusCode = 400;
-    throw err;
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found" });
   }
 
-  const user = await AuthService.changePassword(
-    req.user.id,
-    value.oldPassword,
-    value.newPassword
+  // Generate a reset token (similar to your verification token logic)
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  user.resetPasswordToken = resetToken;
+  user.resetPasswordExpiry = Date.now() + 3600000; // 1 hour
+  await user.save();
+
+  // Send the email (ensure Step 1 is fixed first!)
+  await sendEmail(
+    user.email,
+    "Password Reset Request",
+    `<p>Click <a href="${process.env.FRONTEND_URL}/reset-password/${resetToken}">here</a> to reset.</p>`
   );
 
-  res.status(200).json({
-    success: true,
-    message: 'Password changed successfully',
-    data: { user: user.toJSON() }
-  });
+  res.status(200).json({ success: true, message: "Reset link sent!" });
 };
 
 // ================= CURRENT USER =================
