@@ -22,7 +22,7 @@ router.get(
 router.post(
   '/',
   authenticate,
-  authorize('user', "pg_owner"),
+  authorize('user', 'pg_owner', 'admin'),
   asyncWrapper(reviewController.createReview)
 );
 

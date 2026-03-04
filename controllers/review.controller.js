@@ -44,6 +44,7 @@ export const getListingReviews = async (req, res) => {
 
 export const createReview = async (req, res) => {
   try {
+
     const value = validate(createReviewSchema, req.body);
 
     const review = await ReviewService.createReview(
@@ -59,6 +60,7 @@ export const createReview = async (req, res) => {
 
   } catch (error) {
     console.error("Create Review Error:", error);
+
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
@@ -66,9 +68,7 @@ export const createReview = async (req, res) => {
   }
 };
 
-// ===============================
 // Delete Review
-// ===============================
 
 export const deleteReview = async (req, res) => {
   try {
