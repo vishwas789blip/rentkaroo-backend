@@ -6,10 +6,16 @@ import * as reviewController from '../controllers/review.controller.js';
 const router = express.Router();
 
 // Public Routes
-router.get('/listing/:listingId', asyncWrapper(reviewController.getListingReviews));
-router.get('/:id', asyncWrapper(reviewController.getReview));
+
+// Get reviews for a listing
+router.get(
+  '/listing/:listingId',
+  asyncWrapper(reviewController.getListingReviews)
+);
 
 // Protected Routes
+
+// Get logged-in user's reviews
 router.get(
   '/user/my-reviews',
   authenticate,
@@ -17,8 +23,7 @@ router.get(
   asyncWrapper(reviewController.getUserReviews)
 );
 
-// Ensure this matches the controller function name exactly
-
+// Create review
 router.post(
   '/',
   authenticate,
@@ -26,6 +31,7 @@ router.post(
   asyncWrapper(reviewController.createReview)
 );
 
+// Update review
 router.put(
   '/:id',
   authenticate,
@@ -33,6 +39,7 @@ router.put(
   asyncWrapper(reviewController.updateReview)
 );
 
+// Delete review
 router.delete(
   '/:id',
   authenticate,
@@ -40,6 +47,16 @@ router.delete(
   asyncWrapper(reviewController.deleteReview)
 );
 
-router.post('/:id/helpful', asyncWrapper(reviewController.markHelpful));
+// Mark review helpful
+router.post(
+  '/:id/helpful',
+  asyncWrapper(reviewController.markHelpful)
+);
+
+// Single Review Route (LAST)
+router.get(
+  '/:id',
+  asyncWrapper(reviewController.getReview)
+);
 
 export default router;

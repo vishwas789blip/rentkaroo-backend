@@ -1,4 +1,5 @@
 import Joi from 'joi';
+import Review from '../models/Review.js';
 import { ReviewService } from '../services/review.service.js';
 import { validate } from '../utils/validate.js';
 
@@ -109,6 +110,50 @@ export const getReview = async (req, res) => {
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
+    });
+  }
+};
+
+
+export const updateReview = async (req, res) => {
+  try {
+    const { rating, comment } = req.body;
+
+    const review = await Review.findById(req.params.id);
+
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: "Review not found",
+      });
+    }
+
+    // Check if the logged-in user owns the review
+    if (review.user.toString() !== req.user.id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only edit your own review",
+      });
+    }
+
+    // Update fields
+    review.rating = rating;
+    review.comment = comment;
+
+    await review.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Review updated successfully",
+      data: review,
+    });
+
+  } catch (error) {
+    console.error("Update review error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Server error while updating review",
     });
   }
 };
