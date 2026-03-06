@@ -5,9 +5,9 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
-import "express-async-errors";
-import cookieParser from "cookie-parser";
 import compression from "compression";
+import cookieParser from "cookie-parser";
+import "express-async-errors";
 
 import { connectDB } from "./config/database.js";
 import { errorHandler } from "./middleware/errorHandler.js";
@@ -30,18 +30,29 @@ app.use(helmet());
 app.use(compression());
 
 /* ================= CORS ================= */
-/*
-  origin:true allows:
-  localhost
-  vercel deployments
-  production domains
-*/
+
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://127.0.0.1:5173",
+  "https://rentkaroo-frontend.vercel.app",
+  "https://rentkaroo-frontend-3x035ply9.vercel.app",
+];
 
 app.use(
   cors({
-    origin: true,
+    origin: function (origin, callback) {
+
+      // allow requests with no origin (mobile apps, curl)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("Not allowed by CORS"));
+    },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
     allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
@@ -60,14 +71,14 @@ app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-/* ================= HOME ROUTE ================= */
+/* ================= ROOT ROUTE ================= */
 
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "RentKaroo PG Booking API 🚀",
+    message: "🚀 RentKaroo PG Booking API running",
     version: "1.0.0",
-    healthCheck: "/api/v1/health"
+    docs: "/api/v1/health"
   });
 });
 
@@ -85,15 +96,15 @@ app.use("/api/v1/support", supportRoutes);
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Server running successfully",
-    timestamp: new Date(),
+    message: "Server running",
+    time: new Date(),
     uptime: process.uptime()
   });
 });
 
-/* ================= 404 HANDLER ================= */
+/* ================= 404 ROUTE ================= */
 
-app.use((req, res) => {
+app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
@@ -108,12 +119,12 @@ app.use(errorHandler);
 /* ================= PROCESS ERROR HANDLING ================= */
 
 process.on("unhandledRejection", (err) => {
-  console.error("Unhandled Rejection:", err);
+  console.error("Unhandled Rejection:", err.message);
   process.exit(1);
 });
 
 process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err);
+  console.error("Uncaught Exception:", err.message);
   process.exit(1);
 });
 
@@ -121,11 +132,12 @@ process.on("uncaughtException", (err) => {
 
 const startServer = async () => {
   try {
+
     await connectDB();
 
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
+      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
     });
 
   } catch (error) {
