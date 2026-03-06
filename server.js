@@ -24,11 +24,11 @@ app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 5000;
 
-/* ================= SECURITY ================= */
+/* ================= SECURITY & OPTIMIZATION ================= */
 app.use(helmet());
 app.use(compression());
 
-/* ================= CORS (DYNAMIC FIX) ================= */
+/* ================= ROBUST CORS CONFIGURATION ================= */
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
@@ -41,71 +41,51 @@ app.use(
       // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
 
-      // Check if origin is in whitelist OR is a Vercel preview deployment
+      // Check if origin is in whitelist OR is a Vercel subdomain
       const isAllowed = allowedOrigins.includes(origin) || 
-                        origin.endsWith(".vercel.app");
+                        /\.vercel\.app$/.test(origin);
 
       if (isAllowed) {
         return callback(null, true);
       } else {
-        console.log("CORS Blocked Origin:", origin); // Helpful for debugging
+        console.error(`CORS blocked for origin: ${origin}`);
         return callback(new Error("Not allowed by CORS"));
       }
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"]
   })
 );
 
-// Handle preflight requests for all routes
+// Explicitly handle preflight OPTIONS requests
 app.options("*", cors());
 
-/* ================= LOGGER ================= */
-if (process.env.NODE_ENV === "development") {
-  app.use(morgan("dev"));
-}
-
-/* ================= BODY PARSER ================= */
+/* ================= BODY PARSERS ================= */
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-/* ================= ROOT ROUTE ================= */
-app.get("/", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "🚀 RentKaroo PG Booking API running",
-    version: "1.0.0",
-    docs: "/api/v1/health"
-  });
-});
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
+}
 
 /* ================= API ROUTES ================= */
-// Note: These prefixes determine your frontend fetch URLs
+// All routes now correctly prefixed according to your file structure
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/pg-listings", pgListingRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
-app.use("/api/v1/admin", adminRoutes); // Users/Stats are under this prefix
+app.use("/api/v1/admin", adminRoutes);
 app.use("/api/v1/support", supportRoutes);
 
-/* ================= HEALTH CHECK ================= */
-app.get("/api/v1/health", (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: "Server running",
-    time: new Date(),
-    uptime: process.uptime()
-  });
-});
+/* ================= HEALTH & 404 ================= */
+app.get("/", (req, res) => res.send("🚀 RentKaroo API running"));
 
-/* ================= 404 ROUTE ================= */
 app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
-    message: "Route not found",
-    path: req.originalUrl
+    message: `Route not found: ${req.originalUrl}`
   });
 });
 
@@ -118,10 +98,9 @@ const startServer = async () => {
     await connectDB();
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
     });
   } catch (error) {
-    console.error("❌ Failed to start server:", error.message);
+    console.error("❌ Database connection failed:", error.message);
     process.exit(1);
   }
 };
