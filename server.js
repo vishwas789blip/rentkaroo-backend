@@ -1,30 +1,36 @@
 import dotenv from "dotenv";
-dotenv.config();  
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import 'express-async-errors';
+dotenv.config();
+
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import "express-async-errors";
 import cookieParser from "cookie-parser";
+import compression from "compression";
 
-import { connectDB } from './config/database.js';
-import { errorHandler } from './middleware/errorHandler.js';
+import { connectDB } from "./config/database.js";
+import { errorHandler } from "./middleware/errorHandler.js";
 
-import authRoutes from './routes/auth.routes.js';
-import pgListingRoutes from './routes/pgListing.routes.js';
-import bookingRoutes from './routes/booking.routes.js';
-import reviewRoutes from './routes/review.routes.js';
-import adminRoutes from './routes/admin.routes.js';
-import userRoutes from './routes/user.routes.js';
-
+import authRoutes from "./routes/auth.routes.js";
+import pgListingRoutes from "./routes/pgListing.routes.js";
+import bookingRoutes from "./routes/booking.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import supportRoutes from "./routes/support.routes.js";
 
 const app = express();
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 const PORT = process.env.PORT || 5000;
 
-// Security
+/* ================= SECURITY ================= */
+
 app.use(helmet());
+app.use(compression());
+
+/* ================= CORS ================= */
+
 const allowedOrigins = [
   "http://localhost:5173",
   "https://rentkaroo-frontend.vercel.app",
@@ -37,86 +43,100 @@ const corsOptions = {
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      callback(null, false);
+      console.warn("Blocked CORS origin:", origin);
+      callback(new Error("Not allowed by CORS"));
     }
   },
   credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"]
 };
 
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
+/* ================= LOGGER ================= */
+
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
 }
 
-// Body Parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ limit: '10mb', extended: true }));
+/* ================= BODY PARSER ================= */
+
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
-// Home Route
-app.get('/', (req, res) => {
+/* ================= HOME ROUTE ================= */
+
+app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'PG Booking API is running 🚀',
-    version: '1.0.0',
-    documentation: '/api/v1/health'
+    message: "RentKaroo PG Booking API 🚀",
+    version: "1.0.0",
+    healthCheck: "/api/v1/health"
   });
 });
 
-// Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/pg-listings', pgListingRoutes);
-app.use('/api/v1/bookings', bookingRoutes);
-app.use('/api/v1/reviews', reviewRoutes);
-app.use('/api/v1/admin', adminRoutes);
-app.use('/api/v1/user', userRoutes);
+/* ================= API ROUTES ================= */
 
-// Health Check
-app.get('/api/v1/health', (req, res) => {
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/pg-listings", pgListingRoutes);
+app.use("/api/v1/bookings", bookingRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/support", supportRoutes);
+
+/* ================= HEALTH CHECK ================= */
+
+app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: 'Server is running',
-    timestamp: new Date()
+    message: "Server running successfully",
+    timestamp: new Date(),
+    uptime: process.uptime()
   });
 });
 
-// 404
+/* ================= 404 HANDLER ================= */
+
 app.use((req, res) => {
   res.status(404).json({
     success: false,
-    message: 'Route not found',
+    message: "Route not found",
     path: req.originalUrl
   });
 });
 
-// Global Error Handler
+/* ================= GLOBAL ERROR HANDLER ================= */
+
 app.use(errorHandler);
 
-// Graceful Shutdown
-process.on('unhandledRejection', (err) => {
-  console.error('Unhandled Rejection:', err);
+/* ================= PROCESS ERROR HANDLING ================= */
+
+process.on("unhandledRejection", (err) => {
+  console.error("Unhandled Rejection:", err);
   process.exit(1);
 });
 
-process.on('uncaughtException', (err) => {
-  console.error('Uncaught Exception:', err);
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
   process.exit(1);
 });
 
-// Start Server
+/* ================= START SERVER ================= */
+
 const startServer = async () => {
   try {
     await connectDB();
+
     app.listen(PORT, () => {
-      console.log(`✅ Server running on port ${PORT}`);
+      console.log(`🚀 Server running on port ${PORT}`);
       console.log(`Environment: ${process.env.NODE_ENV}`);
     });
+
   } catch (error) {
-    console.error('❌ Failed to start server:', error.message);
+    console.error("❌ Failed to start server:", error.message);
     process.exit(1);
   }
 };

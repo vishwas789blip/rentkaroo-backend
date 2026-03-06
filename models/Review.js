@@ -5,19 +5,22 @@ const reviewSchema = new mongoose.Schema(
   user: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true
+    required: true,
+    index: true
   },
 
   pgListing: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "PGListing",
-    required: true
+    required: true,
+    index: true
   },
 
   pgOwner: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
-    required: true
+    required: true,
+    index: true
   },
 
   rating: {
@@ -31,13 +34,41 @@ const reviewSchema = new mongoose.Schema(
     type: String,
     required: true,
     minlength: 5,
-    maxlength: 1000
+    maxlength: 1000,
+    trim: true
   },
 
-  helpful: {
+  /* ================= HELPFUL SYSTEM ================= */
+
+  helpfulCount: {
     type: Number,
     default: 0
   },
+
+  helpfulBy: [
+    {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User"
+    }
+  ],
+
+  /* ================= OWNER REPLY ================= */
+
+  ownerReply: {
+    message: String,
+    repliedAt: Date
+  },
+
+  /* ================= REVIEW IMAGES ================= */
+
+  images: [
+    {
+      url: String,
+      publicId: String
+    }
+  ],
+
+  /* ================= SOFT DELETE ================= */
 
   isDeleted: {
     type: Boolean,
@@ -47,5 +78,21 @@ const reviewSchema = new mongoose.Schema(
 },
 { timestamps: true }
 );
+
+
+/* ================= PREVENT DUPLICATE REVIEW ================= */
+
+reviewSchema.index(
+  { user: 1, pgListing: 1 },
+  { unique: true }
+);
+
+
+/* ================= INDEXES ================= */
+
+reviewSchema.index({ pgListing: 1 });
+reviewSchema.index({ rating: 1 });
+reviewSchema.index({ createdAt: -1 });
+
 
 export default mongoose.model("Review", reviewSchema);

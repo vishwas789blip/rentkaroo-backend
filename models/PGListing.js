@@ -1,16 +1,18 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 const pgListingSchema = new mongoose.Schema(
   {
     owner: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: true
+      ref: "User",
+      required: true,
+      index: true
     },
 
     title: {
       type: String,
-      required: true
+      required: true,
+      trim: true
     },
 
     images: [
@@ -26,16 +28,33 @@ const pgListingSchema = new mongoose.Schema(
     },
 
     address: {
-      street: { type: String, required: true },
-      city: { type: String, required: true },
-      state: { type: String, required: true },
-      pincode: { type: String, required: true }   // ✅ changed
+      street: {
+        type: String,
+        required: true
+      },
+
+      city: {
+        type: String,
+        required: true,
+        index: true
+      },
+
+      state: {
+        type: String,
+        required: true
+      },
+
+      pincode: {
+        type: String,
+        required: true
+      }
     },
 
     pricePerMonth: {
       type: Number,
       required: true,
-      min: 0
+      min: 0,
+      index: true
     },
 
     rooms: {
@@ -44,9 +63,10 @@ const pgListingSchema = new mongoose.Schema(
         required: true,
         min: 0
       },
+
       roomType: {
         type: String,
-        enum: ['single', 'double', 'triple', 'quad'],
+        enum: ["single", "double", "triple", "quad"],
         required: true
       }
     },
@@ -55,35 +75,73 @@ const pgListingSchema = new mongoose.Schema(
       {
         type: String,
         enum: [
-          'wifi',
-          'ac',
-          'parking',
-          'laundry',
-          'kitchen',
-          'garden',
-          'gym',
-          'security',
-          'electricity bill'  
+          "wifi",
+          "ac",
+          "parking",
+          "laundry",
+          "kitchen",
+          "garden",
+          "gym",
+          "security",
+          "electricity bill"
         ]
       }
     ],
 
-    averageRating: {
-    type: Number,
-    default: 0
-},
+    /* ================= RATING ================= */
 
-totalReviews: {
-  type: Number,
-  default: 0
-},
+    rating: {
+      average: {
+        type: Number,
+        default: 0
+      },
+
+      count: {
+        type: Number,
+        default: 0
+      }
+    },
+
+    /* ================= ADMIN CONTROL ================= */
+
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "pending",
+      index: true
+    },
+
+    isFeatured: {
+      type: Boolean,
+      default: false
+    },
+
+    isAvailable: {
+      type: Boolean,
+      default: true
+    },
+
+    /* ================= SOFT DELETE ================= */
 
     isDeleted: {
       type: Boolean,
       default: false
     }
+
   },
-  { timestamps: true }
+  {
+    timestamps: true
+  }
 );
 
-export default mongoose.model('PGListing', pgListingSchema);
+
+/* ================= SEARCH INDEX ================= */
+
+pgListingSchema.index({
+  "address.city": "text",
+  title: "text",
+  description: "text"
+});
+
+
+export default mongoose.model("PGListing", pgListingSchema);

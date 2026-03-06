@@ -1,62 +1,68 @@
-import express from 'express';
-import { asyncWrapper } from '../middleware/asyncWrapper.js';
-import { authenticate, authorize } from '../middleware/auth.js';
-import * as reviewController from '../controllers/review.controller.js';
+import express from "express";
+import { asyncWrapper } from "../middleware/asyncWrapper.js";
+import { authenticate, authorize } from "../middleware/auth.js";
+import * as reviewController from "../controllers/review.controller.js";
 
 const router = express.Router();
 
-// Public Routes
+/* ===============================
+   PUBLIC ROUTES
+=============================== */
 
 // Get reviews for a listing
 router.get(
-  '/listing/:listingId',
+  "/listing/:listingId",
   asyncWrapper(reviewController.getListingReviews)
 );
 
-// Protected Routes
+// Get single review
+router.get(
+  "/:id",
+  asyncWrapper(reviewController.getReview)
+);
+
+
+/* ===============================
+   PROTECTED ROUTES
+=============================== */
 
 // Get logged-in user's reviews
 router.get(
-  '/user/my-reviews',
+  "/user/my-reviews",
   authenticate,
-  authorize('user'),
+  authorize("user"),
   asyncWrapper(reviewController.getUserReviews)
 );
 
 // Create review
 router.post(
-  '/',
+  "/",
   authenticate,
-  authorize('user', 'pg_owner', 'admin'),
+  authorize("user", "pg_owner", "admin"),
   asyncWrapper(reviewController.createReview)
 );
 
 // Update review
 router.put(
-  '/:id',
+  "/:id",
   authenticate,
-  authorize('user'),
+  authorize("user"),
   asyncWrapper(reviewController.updateReview)
 );
 
 // Delete review
 router.delete(
-  '/:id',
+  "/:id",
   authenticate,
-  authorize('user'),
+  authorize("user"),
   asyncWrapper(reviewController.deleteReview)
 );
 
 // Mark review helpful
-router.post(
-  '/:id/helpful',
+router.patch(
+  "/:id/helpful",
+  authenticate,
   asyncWrapper(reviewController.markHelpful)
-);
-
-// Single Review Route (LAST)
-router.get(
-  '/:id',
-  asyncWrapper(reviewController.getReview)
 );
 
 export default router;

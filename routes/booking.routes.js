@@ -2,17 +2,20 @@ import express from "express";
 import { asyncWrapper } from "../middleware/asyncWrapper.js";
 import { authenticate, authorize } from "../middleware/auth.js";
 import { bookingLimiter } from "../middleware/rateLimiter.js";
+
 import * as bookingController from "../controllers/booking.controller.js";
 
 const router = express.Router();
 
-// ================= USER ROUTES =================
+/* ===============================
+   USER ROUTES
+=============================== */
 
-// Create booking
+// Create Booking
 router.post(
   "/",
   authenticate,
-  authorize("user" ),
+  authorize("user"),
   bookingLimiter,
   asyncWrapper(bookingController.createBooking)
 );
@@ -26,14 +29,17 @@ router.get(
 );
 
 // Cancel booking
-router.post(
+router.patch(
   "/:id/cancel",
   authenticate,
   authorize("user"),
   asyncWrapper(bookingController.cancelBooking)
 );
 
-// ================= OWNER ROUTES =================
+
+/* ===============================
+   OWNER ROUTES
+=============================== */
 
 // Get owner bookings
 router.get(
@@ -44,7 +50,7 @@ router.get(
 );
 
 // Approve booking
-router.post(
+router.patch(
   "/:id/approve",
   authenticate,
   authorize("pg_owner", "admin"),
@@ -52,7 +58,7 @@ router.post(
 );
 
 // Reject booking
-router.post(
+router.patch(
   "/:id/reject",
   authenticate,
   authorize("pg_owner", "admin"),
@@ -67,7 +73,25 @@ router.get(
   asyncWrapper(bookingController.getOwnerAnalytics)
 );
 
-// ================= SINGLE BOOKING (KEEP LAST) =================
+
+/* ===============================
+   ADMIN ROUTES
+=============================== */
+
+// Get all bookings (admin)
+router.get(
+  "/admin/all",
+  authenticate,
+  authorize("admin"),
+  asyncWrapper(bookingController.getAllBookings)
+);
+
+
+/* ===============================
+   SINGLE BOOKING
+   (Keep this last)
+=============================== */
+
 router.get(
   "/:id",
   authenticate,

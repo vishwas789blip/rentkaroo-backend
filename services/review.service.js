@@ -1,53 +1,167 @@
-import mongoose from 'mongoose';
-import Review from '../models/Review.js';
-import PGListing from '../models/PGListing.js'; // Booking import ki zaroorat nahi ab
-import { APIError } from '../middleware/errorHandler.js';
+import mongoose from "mongoose";
+import Review from "../models/Review.js";
+import PGListing from "../models/PGListing.js";
+import { APIError } from "../middleware/errorHandler.js";
 
 export class ReviewService {
 
+  /* ================= GET REVIEWS BY LISTING ================= */
+
   static async getReviewsByListing(listingId) {
-    return await Review.find({
+
+    return Review.find({
       pgListing: listingId,
       isDeleted: false
     })
-      .populate('user', 'name')
+      .populate("user", "name")
       .sort({ createdAt: -1 });
+
   }
 
+
+  /* ================= GET USER REVIEWS ================= */
+
+  static async getUserReviews(userId) {
+
+    return Review.find({
+      user: userId,
+      isDeleted: false
+    })
+      .populate("pgListing", "title")
+      .sort({ createdAt: -1 });
+
+  }
+
+
+  /* ================= GET SINGLE REVIEW ================= */
+
+  static async getReviewById(id) {
+
+    const review = await Review.findById(id)
+      .populate("user", "name")
+      .populate("pgListing", "title");
+
+    if (!review || review.isDeleted) {
+      throw new APIError("Review not found", 404);
+    }
+
+    return review;
+
+  }
+
+
+  /* ================= CREATE REVIEW ================= */
+
   static async createReview(data, userId) {
-    // 1. Check karein ki listing exist karti hai ya nahi
+
     const listing = await PGListing.findById(data.listingId);
+
     if (!listing) {
-      throw new APIError('Listing not found', 404);
+      throw new APIError("Listing not found", 404);
     }
 
-    // 2. Check karein ki kya user ne pehle hi is listing par review diya hai (Optional)
-    const exists = await Review.findOne({ 
-      user: userId, 
+    const exists = await Review.findOne({
+      user: userId,
       pgListing: data.listingId,
-      isDeleted: false 
+      isDeleted: false
     });
-    
+
     if (exists) {
-      throw new APIError('You have already reviewed this listing', 400);
+      throw new APIError(
+        "You have already reviewed this listing",
+        400
+      );
     }
 
-    // 3. Review create karein (Ab bookingId ki zaroorat nahi)
     const review = await Review.create({
       rating: data.rating,
       comment: data.comment,
       user: userId,
       pgListing: data.listingId,
-      pgOwner: listing.owner // Listing model se owner le rahe hain
+      pgOwner: listing.owner
     });
 
-    // 4. Listing ki average rating update karein
     await this.updateListingRating(data.listingId);
 
     return review;
+
   }
 
+
+  /* ================= UPDATE REVIEW ================= */
+
+  static async updateReview(reviewId, data, userId) {
+
+    const review = await Review.findById(reviewId);
+
+    if (!review || review.isDeleted) {
+      throw new APIError("Review not found", 404);
+    }
+
+    if (review.user.toString() !== userId) {
+      throw new APIError("Unauthorized", 403);
+    }
+
+    review.rating = data.rating;
+    review.comment = data.comment;
+
+    await review.save();
+
+    await this.updateListingRating(review.pgListing);
+
+    return review;
+
+  }
+
+
+  /* ================= DELETE REVIEW ================= */
+
+  static async deleteReview(reviewId, userId) {
+
+    const review = await Review.findById(reviewId);
+
+    if (!review || review.isDeleted) {
+      throw new APIError("Review not found", 404);
+    }
+
+    if (review.user.toString() !== userId) {
+      throw new APIError("Unauthorized", 403);
+    }
+
+    review.isDeleted = true;
+
+    await review.save();
+
+    await this.updateListingRating(review.pgListing);
+
+    return { message: "Review deleted successfully" };
+
+  }
+
+
+  /* ================= MARK REVIEW HELPFUL ================= */
+
+  static async markHelpful(reviewId) {
+
+    const review = await Review.findById(reviewId);
+
+    if (!review || review.isDeleted) {
+      throw new APIError("Review not found", 404);
+    }
+
+    review.helpfulCount = (review.helpfulCount || 0) + 1;
+
+    await review.save();
+
+    return review;
+
+  }
+
+
+  /* ================= UPDATE LISTING RATING ================= */
+
   static async updateListingRating(listingId) {
+
     const objectId = new mongoose.Types.ObjectId(listingId);
 
     const stats = await Review.aggregate([
@@ -55,7 +169,7 @@ export class ReviewService {
       {
         $group: {
           _id: null,
-          average: { $avg: '$rating' },
+          average: { $avg: "$rating" },
           count: { $sum: 1 }
         }
       }
@@ -65,8 +179,10 @@ export class ReviewService {
     const count = stats[0]?.count || 0;
 
     await PGListing.findByIdAndUpdate(listingId, {
-      'rating.average': average,
-      'rating.count': count
+      "rating.average": average,
+      "rating.count": count
     });
+
   }
+
 }

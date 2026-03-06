@@ -2,126 +2,291 @@ import Joi from "joi";
 import { BookingService } from "../services/booking.service.js";
 import { validate } from "../utils/validate.js";
 
+/* ===============================
+   Validation Schema
+=============================== */
+
 const createBookingSchema = Joi.object({
   pgListingId: Joi.string().required(),
+
   checkInDate: Joi.date().required(),
-  checkOutDate: Joi.date().greater(Joi.ref("checkInDate")).required(),
-  numberOfRooms: Joi.number().positive().required(),
+
+  checkOutDate: Joi.date()
+    .greater(Joi.ref("checkInDate"))
+    .required(),
+
+  numberOfRooms: Joi.number()
+    .min(1)
+    .required(),
+
   guests: Joi.array().items(
     Joi.object({
-      name: Joi.string().required(),
+      name: Joi.string().min(2).required(),
       email: Joi.string().email().required(),
-      phone: Joi.string().required(),
+      phone: Joi.string().pattern(/^[0-9]{10}$/).required()
     })
   ),
-  specialRequests: Joi.string().allow(""),
+
+  specialRequests: Joi.string().allow("")
 });
 
-// ================= CREATE =================
+
+/* ===============================
+   Create Booking
+=============================== */
+
 export const createBooking = async (req, res) => {
-  const value = validate(createBookingSchema, req.body);
 
-  const booking = await BookingService.createBooking(
-    value,
-    req.user.id
-  );
+  try {
 
-  res.status(201).json({
-    success: true,
-    message: "Booking created successfully",
-    data: booking,
-  });
+    const value = validate(createBookingSchema, req.body);
+
+    const booking = await BookingService.createBooking(
+      value,
+      req.user.id
+    );
+
+    res.status(201).json({
+      success: true,
+      message: "Booking created successfully",
+      data: booking
+    });
+
+  } catch (error) {
+
+    console.error("Create Booking Error:", error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };
 
-// ================= USER BOOKINGS =================
+
+/* ===============================
+   User Bookings
+=============================== */
+
 export const getUserBookings = async (req, res) => {
-  const bookings = await BookingService.getUserBookings(
-    req.user.id
-  );
 
-  res.status(200).json({
-    success: true,
-    data: bookings,
-  });
+  try {
+
+    const bookings = await BookingService.getUserBookings(
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      data: bookings
+    });
+
+  } catch (error) {
+
+    console.error("User Booking Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };
 
-// ================= OWNER BOOKINGS =================
+
+/* ===============================
+   Owner Bookings
+=============================== */
+
 export const getOwnerBookings = async (req, res) => {
-  const bookings = await BookingService.getOwnerBookings(
-    req.user.id
-  );
 
-  res.status(200).json({
-    success: true,
-    data: bookings,
-  });
+  try {
+
+    const bookings = await BookingService.getOwnerBookings(
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      data: bookings
+    });
+
+  } catch (error) {
+
+    console.error("Owner Booking Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };
 
-// ================= GET SINGLE =================
+
+/* ===============================
+   Get Single Booking
+=============================== */
+
 export const getBooking = async (req, res) => {
-  const booking = await BookingService.getBookingById(
-    req.params.id,
-    req.user.id,
-    req.user.role
-  );
 
-  res.status(200).json({
-    success: true,
-    data: booking,
-  });
+  try {
+
+    const booking = await BookingService.getBookingById(
+      req.params.id,
+      req.user.id,
+      req.user.role
+    );
+
+    res.status(200).json({
+      success: true,
+      data: booking
+    });
+
+  } catch (error) {
+
+    console.error("Get Booking Error:", error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };
 
-// ================= APPROVE =================
+
+/* ===============================
+   Approve Booking
+=============================== */
+
 export const approveBooking = async (req, res) => {
-  const booking = await BookingService.approveBooking(
-    req.params.id,
-    req.user.id
-  );
 
-  res.status(200).json({
-    success: true,
-    message: "Booking approved",
-    data: booking,
-  });
+  try {
+
+    const booking = await BookingService.approveBooking(
+      req.params.id,
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Booking approved successfully",
+      data: booking
+    });
+
+  } catch (error) {
+
+    console.error("Approve Booking Error:", error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };
 
-// ================= REJECT =================
+
+/* ===============================
+   Reject Booking
+=============================== */
+
 export const rejectBooking = async (req, res) => {
-  const booking = await BookingService.rejectBooking(
-    req.params.id,
-    req.user.id,
-    req.body.rejectionReason
-  );
 
-  res.status(200).json({
-    success: true,
-    message: "Booking rejected",
-    data: booking,
-  });
+  try {
+
+    const booking = await BookingService.rejectBooking(
+      req.params.id,
+      req.user.id,
+      req.body.rejectionReason
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Booking rejected successfully",
+      data: booking
+    });
+
+  } catch (error) {
+
+    console.error("Reject Booking Error:", error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };
 
-// ================= CANCEL =================
+
+/* ===============================
+   Cancel Booking
+=============================== */
+
 export const cancelBooking = async (req, res) => {
-  const booking = await BookingService.cancelBooking(
-    req.params.id,
-    req.user.id
-  );
 
-  res.status(200).json({
-    success: true,
-    message: "Booking cancelled",
-    data: booking,
-  });
+  try {
+
+    const booking = await BookingService.cancelBooking(
+      req.params.id,
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Booking cancelled successfully",
+      data: booking
+    });
+
+  } catch (error) {
+
+    console.error("Cancel Booking Error:", error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };
 
-// ================= ANALYTICS =================
-export const getOwnerAnalytics = async (req, res) => {
-  const analytics = await BookingService.getOwnerAnalytics(
-    req.user.id
-  );
 
-  res.status(200).json({
-    success: true,
-    data: analytics,
-  });
+/* ===============================
+   Owner Analytics
+=============================== */
+
+export const getOwnerAnalytics = async (req, res) => {
+
+  try {
+
+    const analytics = await BookingService.getOwnerAnalytics(
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      data: analytics
+    });
+
+  } catch (error) {
+
+    console.error("Analytics Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
 };

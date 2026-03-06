@@ -1,11 +1,10 @@
-import Joi from 'joi';
-import Review from '../models/Review.js';
-import { ReviewService } from '../services/review.service.js';
-import { validate } from '../utils/validate.js';
+import Joi from "joi";
+import { ReviewService } from "../services/review.service.js";
+import { validate } from "../utils/validate.js";
 
-// ===============================
-// Validation Schema
-// ===============================
+/* ===============================
+   Validation Schemas
+=============================== */
 
 const createReviewSchema = Joi.object({
   listingId: Joi.string().required(),
@@ -13,17 +12,23 @@ const createReviewSchema = Joi.object({
   comment: Joi.string().min(10).max(1000).required()
 });
 
-// ===============================
-// Get Reviews by Listing
-// ===============================
+const updateReviewSchema = Joi.object({
+  rating: Joi.number().min(1).max(5).required(),
+  comment: Joi.string().min(10).max(1000).required()
+});
+
+
+/* ===============================
+   Get Reviews by Listing
+=============================== */
 
 export const getListingReviews = async (req, res) => {
+
   try {
-    console.log("Listing ID:", req.params.listingId);
 
-    const reviews = await ReviewService.getReviewsByListing(req.params.listingId);
-
-    console.log("Reviews found:", reviews);
+    const reviews = await ReviewService.getReviewsByListing(
+      req.params.listingId
+    );
 
     res.status(200).json({
       success: true,
@@ -31,19 +36,25 @@ export const getListingReviews = async (req, res) => {
     });
 
   } catch (error) {
-    console.error("Review Error FULL:", error);
+
+    console.error("Get Reviews Error:", error);
+
     res.status(500).json({
       success: false,
       message: error.message
     });
+
   }
+
 };
 
-// ===============================
-// Create Review
-// ===============================
+
+/* ===============================
+   Create Review
+=============================== */
 
 export const createReview = async (req, res) => {
+
   try {
 
     const value = validate(createReviewSchema, req.body);
@@ -55,24 +66,68 @@ export const createReview = async (req, res) => {
 
     res.status(201).json({
       success: true,
-      message: 'Review created successfully',
+      message: "Review created successfully",
       data: review
     });
 
   } catch (error) {
+
     console.error("Create Review Error:", error);
 
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
+
   }
+
 };
 
-// Delete Review
+
+/* ===============================
+   Update Review
+=============================== */
+
+export const updateReview = async (req, res) => {
+
+  try {
+
+    const value = validate(updateReviewSchema, req.body);
+
+    const review = await ReviewService.updateReview(
+      req.params.id,
+      value,
+      req.user.id
+    );
+
+    res.status(200).json({
+      success: true,
+      message: "Review updated successfully",
+      data: review
+    });
+
+  } catch (error) {
+
+    console.error("Update Review Error:", error);
+
+    res.status(error.statusCode || 500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
+};
+
+
+/* ===============================
+   Delete Review
+=============================== */
 
 export const deleteReview = async (req, res) => {
+
   try {
+
     await ReviewService.deleteReview(
       req.params.id,
       req.user.id
@@ -80,25 +135,34 @@ export const deleteReview = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: 'Review deleted successfully'
+      message: "Review deleted successfully"
     });
 
   } catch (error) {
+
     console.error("Delete Review Error:", error);
+
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
+
   }
+
 };
 
-// ===============================
-// (Optional) Get Single Review
-// ===============================
+
+/* ===============================
+   Get Single Review
+=============================== */
 
 export const getReview = async (req, res) => {
+
   try {
-    const review = await ReviewService.getReviewById(req.params.id);
+
+    const review = await ReviewService.getReviewById(
+      req.params.id
+    );
 
     res.status(200).json({
       success: true,
@@ -106,54 +170,14 @@ export const getReview = async (req, res) => {
     });
 
   } catch (error) {
+
     console.error("Get Review Error:", error);
+
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
+
   }
-};
 
-
-export const updateReview = async (req, res) => {
-  try {
-    const { rating, comment } = req.body;
-
-    const review = await Review.findById(req.params.id);
-
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: "Review not found",
-      });
-    }
-
-    // Check if the logged-in user owns the review
-    if (review.user.toString() !== req.user.id.toString()) {
-      return res.status(403).json({
-        success: false,
-        message: "You can only edit your own review",
-      });
-    }
-
-    // Update fields
-    review.rating = rating;
-    review.comment = comment;
-
-    await review.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Review updated successfully",
-      data: review,
-    });
-
-  } catch (error) {
-    console.error("Update review error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Server error while updating review",
-    });
-  }
 };
