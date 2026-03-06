@@ -25,31 +25,32 @@ app.set("trust proxy", 1);
 const PORT = process.env.PORT || 5000;
 
 /* ================= SECURITY ================= */
-
 app.use(helmet());
 app.use(compression());
 
-/* ================= CORS ================= */
-
+/* ================= CORS (DYNAMIC FIX) ================= */
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
   "https://rentkaroo-frontend.vercel.app",
-  "https://rentkaroo-frontend-3x035ply9.vercel.app",
 ];
 
 app.use(
   cors({
     origin: function (origin, callback) {
-
-      // allow requests with no origin (mobile apps, curl)
+      // Allow requests with no origin (like mobile apps or curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.includes(origin)) {
-        return callback(null, true);
-      }
+      // Check if origin is in whitelist OR is a Vercel preview deployment
+      const isAllowed = allowedOrigins.includes(origin) || 
+                        origin.endsWith(".vercel.app");
 
-      return callback(new Error("Not allowed by CORS"));
+      if (isAllowed) {
+        return callback(null, true);
+      } else {
+        console.log("CORS Blocked Origin:", origin); // Helpful for debugging
+        return callback(new Error("Not allowed by CORS"));
+      }
     },
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
@@ -57,22 +58,20 @@ app.use(
   })
 );
 
+// Handle preflight requests for all routes
 app.options("*", cors());
 
 /* ================= LOGGER ================= */
-
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
 
 /* ================= BODY PARSER ================= */
-
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser());
 
 /* ================= ROOT ROUTE ================= */
-
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
@@ -83,16 +82,15 @@ app.get("/", (req, res) => {
 });
 
 /* ================= API ROUTES ================= */
-
+// Note: These prefixes determine your frontend fetch URLs
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/pg-listings", pgListingRoutes);
 app.use("/api/v1/bookings", bookingRoutes);
 app.use("/api/v1/reviews", reviewRoutes);
-app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/admin", adminRoutes); // Users/Stats are under this prefix
 app.use("/api/v1/support", supportRoutes);
 
 /* ================= HEALTH CHECK ================= */
-
 app.get("/api/v1/health", (req, res) => {
   res.status(200).json({
     success: true,
@@ -103,7 +101,6 @@ app.get("/api/v1/health", (req, res) => {
 });
 
 /* ================= 404 ROUTE ================= */
-
 app.use("*", (req, res) => {
   res.status(404).json({
     success: false,
@@ -113,33 +110,16 @@ app.use("*", (req, res) => {
 });
 
 /* ================= GLOBAL ERROR HANDLER ================= */
-
 app.use(errorHandler);
 
-/* ================= PROCESS ERROR HANDLING ================= */
-
-process.on("unhandledRejection", (err) => {
-  console.error("Unhandled Rejection:", err.message);
-  process.exit(1);
-});
-
-process.on("uncaughtException", (err) => {
-  console.error("Uncaught Exception:", err.message);
-  process.exit(1);
-});
-
 /* ================= START SERVER ================= */
-
 const startServer = async () => {
   try {
-
     await connectDB();
-
     app.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
       console.log(`🌍 Environment: ${process.env.NODE_ENV}`);
     });
-
   } catch (error) {
     console.error("❌ Failed to start server:", error.message);
     process.exit(1);
