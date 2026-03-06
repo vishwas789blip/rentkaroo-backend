@@ -30,31 +30,23 @@ app.use(helmet());
 app.use(compression());
 
 /* ================= CORS ================= */
+/*
+  origin:true allows:
+  localhost
+  vercel deployments
+  production domains
+*/
 
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://rentkaroo-frontend.vercel.app",
-  "https://rentkaroo-frontend-5wai0vgnw.vercel.app",
-  "https://rentkaroo-frontend-git-main-vishwasprajapati7980-7769s-projects.vercel.app",
-  "https://rentkaroo-frontend-3x035ply9.vercel.app"
-];
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"]
+  })
+);
 
-const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn("Blocked CORS origin:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
-};
-
-app.use(cors(corsOptions));
-app.options("*", cors(corsOptions));
+app.options("*", cors());
 
 /* ================= LOGGER ================= */
 
