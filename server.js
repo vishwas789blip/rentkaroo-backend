@@ -35,7 +35,8 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://rentkaroo-frontend.vercel.app",
   "https://rentkaroo-frontend-5wai0vgnw.vercel.app",
-  "https://rentkaroo-frontend-git-main-vishwasprajapati7980-7769s-projects.vercel.app"
+  "https://rentkaroo-frontend-git-main-vishwasprajapati7980-7769s-projects.vercel.app",
+  "https://rentkaroo-frontend-3x035ply9.vercel.app"
 ];
 
 const corsOptions = {
