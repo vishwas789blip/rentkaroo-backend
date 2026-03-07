@@ -10,7 +10,6 @@ export class PGListingService {
     const listing = await PGListing.create({
       ...data,
       owner: ownerId,
-      status: "pending"
     });
 
     return listing;
@@ -23,7 +22,6 @@ export class PGListingService {
 
     const filter = {
       isDeleted: { $ne: true },
-      status: "approved"
     };
 
     if (query.location) {
@@ -179,36 +177,23 @@ export class PGListingService {
   /* ================= ADMIN APPROVE ================= */
 
   static async approveListing(id) {
-
     const listing = await PGListing.findById(id);
-
     if (!listing) {
       throw new APIError("Listing not found", 404);
     }
-
-    listing.status = "approved";
-
     await listing.save();
-
     return listing;
-
   }
 
 
   /* ================= ADMIN REJECT ================= */
 
   static async rejectListing(id) {
-
     const listing = await PGListing.findById(id);
-
     if (!listing) {
       throw new APIError("Listing not found", 404);
     }
-
-    listing.status = "rejected";
-
     await listing.save();
-
     return listing;
 
   }

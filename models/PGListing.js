@@ -102,24 +102,6 @@ const pgListingSchema = new mongoose.Schema(
       }
     },
 
-    /* ================= ADMIN CONTROL ================= */
-
-    status: {
-      type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending",
-      index: true
-    },
-
-    isFeatured: {
-      type: Boolean,
-      default: false
-    },
-
-    isAvailable: {
-      type: Boolean,
-      default: true
-    },
 
     /* ================= SOFT DELETE ================= */
 
@@ -127,7 +109,6 @@ const pgListingSchema = new mongoose.Schema(
       type: Boolean,
       default: false
     }
-
   },
   {
     timestamps: true
