@@ -138,7 +138,7 @@ export class PGListingService {
       throw new APIError("Listing not found", 404);
     }
 
-    if (listing.owner.toString() !== ownerId) {
+    if (listing.owner.toString() !== ownerId && req.user.role !== "admin") {
       throw new APIError("Unauthorized", 403);
     }
 

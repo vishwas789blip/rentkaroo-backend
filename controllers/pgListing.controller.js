@@ -226,7 +226,7 @@ export const getListing = async (req, res) => {
 
 export const deleteListing = async (req, res) => {
 
-  await PGListingService.deleteListing(req.params.id, req.user.id);
+  await PGListingService.deleteListing(req.params.id, req.user.id,req.user.role);
 
   res.status(200).json({
     success: true,
