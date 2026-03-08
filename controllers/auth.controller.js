@@ -16,7 +16,9 @@ const registerSchema = Joi.object({
     .pattern(/^\d{10}$/)
     .required(),
 
-  password: Joi.string().min(6).required()
+  password: Joi.string().min(6).required(),
+
+  role: Joi.string().valid("USER", "PG_OWNER").required()
 });
 
 const loginSchema = Joi.object({
@@ -251,7 +253,6 @@ export const forgotPassword = async (req, res) => {
 export const resetPassword = async (req, res) => {
 
   const { token } = req.params;
-
   const { error, value } = resetPasswordSchema.validate(req.body);
 
   if (error) {
@@ -320,7 +321,6 @@ export const changePassword = async (req, res) => {
   }
 
   const user = await User.findById(req.user.id);
-
   const isMatch = await bcrypt.compare(value.oldPassword, user.password);
 
   if (!isMatch) {
@@ -345,9 +345,7 @@ export const changePassword = async (req, res) => {
 /* ================= LOGOUT ================= */
 
 export const logout = async (req, res) => {
-
   await AuthService.logout(req.user.id);
-
   res.status(200).json({
     success: true,
     message: "Logged out successfully"
