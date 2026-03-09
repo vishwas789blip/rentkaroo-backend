@@ -290,3 +290,31 @@ export const getOwnerAnalytics = async (req, res) => {
   }
 
 };
+
+/* ===============================
+   Admin - Get All Bookings
+=============================== */
+
+export const getAllBookingsAdmin = async (req, res) => {
+
+  try {
+
+    const bookings = await BookingService.getAllBookingsAdmin();
+
+    res.status(200).json({
+      success: true,
+      data: bookings
+    });
+
+  } catch (error) {
+
+    console.error("Admin Booking Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+
+  }
+
+};

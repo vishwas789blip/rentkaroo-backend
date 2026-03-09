@@ -289,6 +289,8 @@ export class BookingService {
       }
     ]);
 
+ 
+
     return {
       totalBookings,
       approvedBookings,
@@ -300,4 +302,17 @@ export class BookingService {
     };
   }
 
+
+     /* ================= ADMIN BOOKINGS ================= */
+
+  static async getAllBookingsAdmin() {
+
+  const bookings = await Booking.find()
+    .populate("user", "name email")
+    .populate("pgListing", "title pricePerMonth location")
+    .sort({ createdAt: -1 });
+
+  return bookings;
+
+}
 }
