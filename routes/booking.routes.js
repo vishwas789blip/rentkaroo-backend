@@ -83,7 +83,7 @@ router.get(
   "/admin/all",
   authenticate,
   authorize("admin"),
-  asyncWrapper(bookingController.getAllBookings)
+  asyncWrapper(bookingController.getAllBookingsAdmin)
 );
 
 
