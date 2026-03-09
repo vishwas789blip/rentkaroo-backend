@@ -87,21 +87,38 @@ router.get(
 =============================== */
 
 router.delete(
-  "/users/:id",
+  "/listings/:id",
   authenticate,
   authorize("admin"),
   asyncWrapper(async (req, res) => {
 
-    await User.findByIdAndDelete(req.params.id);
+    const { id } = req.params;
+
+    if (!id) {
+      return res.status(400).json({
+        success: false,
+        message: "Listing ID required"
+      });
+    }
+
+    const listing = await PGListing.findById(id);
+
+    if (!listing) {
+      return res.status(404).json({
+        success: false,
+        message: "Listing not found"
+      });
+    }
+
+    await PGListing.findByIdAndDelete(id);
 
     res.status(200).json({
       success: true,
-      message: "User deleted successfully"
+      message: "Listing deleted successfully"
     });
 
   })
 );
-
 
 /* ===============================
    Suspend User
