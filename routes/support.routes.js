@@ -5,152 +5,97 @@ import { authenticate, authorize } from "../middleware/auth.js";
 
 const router = express.Router();
 
-/* ================= CREATE SUPPORT TICKET ================= */
+/* ================= PUBLIC / AUTHENTICATED USER ROUTES ================= */
 
+// 1. Create a ticket (Public or Logged in)
 router.post(
   "/",
+  // Optional: add 'authenticate' here if you want to link tickets to users
   asyncWrapper(async (req, res) => {
-
     const { name, email, subject, message } = req.body;
 
-    if (!name || !email || !message) {
+    if (!name || !email || !message || !subject) {
       return res.status(400).json({
         success: false,
-        message: "Name, email and message are required"
+        message: "Name, email, subject and message are required"
       });
     }
 
     const ticket = await Support.create({
+      user: req.user?.id || null, // Link if logged in
       name,
       email,
       subject,
       message
     });
 
-    res.status(201).json({
-      success: true,
-      message: "Support request created",
-      data: ticket
-    });
-
+    res.status(201).json({ success: true, data: ticket });
   })
 );
 
-
-/* ================= GET ALL TICKETS (ADMIN) ================= */
-
+// 2. Get User's Own Tickets (LOGGED IN USER ONLY)
+// CRITICAL: This MUST come before authorize("admin")
 router.get(
-  "/",
+  "/my-tickets",
   authenticate,
-  authorize("admin"),
   asyncWrapper(async (req, res) => {
-
-    const tickets = await Support.find({ isDeleted: false })
-      .sort({ createdAt: -1 });
+    const tickets = await Support.find({ 
+      user: req.user.id, 
+      isDeleted: false 
+    }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
       data: tickets
     });
-
   })
 );
 
+/* ================= ADMIN ONLY ROUTES ================= */
+// From this point down, only Admins can pass
+router.use(authenticate, authorize("admin"));
 
-/* ================= GET SINGLE TICKET ================= */
-
+// Get All Tickets
 router.get(
-  "/:id",
-  authenticate,
-  authorize("admin"),
+  "/",
   asyncWrapper(async (req, res) => {
-
-    const ticket = await Support.findById(req.params.id);
-
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: "Ticket not found"
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: ticket
-    });
-
+    const tickets = await Support.find({ isDeleted: false }).sort({ createdAt: -1 });
+    res.status(200).json({ success: true, data: tickets });
   })
 );
 
-
-/* ================= ADMIN REPLY ================= */
-
+// Admin Reply
 router.patch(
   "/:id/reply",
-  authenticate,
-  authorize("admin"),
   asyncWrapper(async (req, res) => {
-
     const { message } = req.body;
-
     const ticket = await Support.findById(req.params.id);
 
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: "Ticket not found"
-      });
-    }
+    if (!ticket) return res.status(404).json({ success: false, message: "Not found" });
 
     ticket.adminReply = {
       message,
       repliedAt: new Date(),
       admin: req.user.id
     };
-
     ticket.status = "resolved";
 
     await ticket.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Reply sent",
-      data: ticket
-    });
-
+    res.status(200).json({ success: true, message: "Reply sent", data: ticket });
   })
 );
 
-
-/* ================= UPDATE STATUS ================= */
-
+// Update Status
 router.patch(
   "/:id/status",
-  authenticate,
-  authorize("admin"),
   asyncWrapper(async (req, res) => {
-
     const { status } = req.body;
-
-    const ticket = await Support.findById(req.params.id);
-
-    if (!ticket) {
-      return res.status(404).json({
-        success: false,
-        message: "Ticket not found"
-      });
-    }
-
-    ticket.status = status;
-
-    await ticket.save();
-
-    res.status(200).json({
-      success: true,
-      message: "Status updated",
-      data: ticket
-    });
-
+    const ticket = await Support.findByIdAndUpdate(
+      req.params.id, 
+      { status }, 
+      { new: true }
+    );
+    res.status(200).json({ success: true, data: ticket });
   })
 );
 
