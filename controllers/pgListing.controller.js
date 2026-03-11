@@ -104,8 +104,6 @@ export const createListing = async (req, res) => {
 
 };
 
-/* ================= UPDATE LISTING ================= */
-
 export const updateListing = async (req, res) => {
 
   try {
@@ -125,40 +123,26 @@ export const updateListing = async (req, res) => {
       rooms: {
         availableRooms: Number(req.body.availableRooms),
         roomType: req.body.roomType
-      },
-
-      amenities: Array.isArray(req.body.amenities)
-        ? req.body.amenities
-        : req.body.amenities
-        ? [req.body.amenities]
-        : []
+      }
     };
 
     const value = validate(listingSchema, parsedBody);
 
-    const images =
-      req.files?.map(file => ({
-        url: file.path,
-        publicId: file.filename
-      })) || [];
-
     const listing = await PGListingService.updateListing(
       req.params.id,
-      { ...value, images },
-      req.user.id
+      value,
+      req.user.id   // logged-in user id
     );
 
     res.status(200).json({
       success: true,
       message: "Listing updated successfully",
-      data: { listing }
+      data: listing
     });
 
   } catch (error) {
 
-    console.error("UPDATE LISTING ERROR:", error);
-
-    res.status(400).json({
+    res.status(error.statusCode || 400).json({
       success: false,
       message: error.message
     });

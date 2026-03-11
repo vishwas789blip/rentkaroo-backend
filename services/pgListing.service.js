@@ -103,54 +103,55 @@ export class PGListingService {
     }).sort({ createdAt: -1 });
 
   }
+/* ================= UPDATE LISTING ================= */
 
+static async updateListing(listingId, data, userId) {
 
-  /* ================= UPDATE LISTING ================= */
+  const listing = await PGListing.findById(listingId);
 
-  static async updateListing(id, data, ownerId) {
-
-    const listing = await PGListing.findById(id);
-
-    if (!listing) {
-      throw new APIError("Listing not found", 404);
-    }
-
-    if (listing.owner.toString() !== ownerId) {
-      throw new APIError("Unauthorized", 403);
-    }
-
-    Object.assign(listing, data);
-
-    await listing.save();
-
-    return listing;
-
+  if (!listing) {
+    throw new APIError("Listing not found", 404);
   }
 
+  /* ================= OWNER CHECK ================= */
 
+  if (listing.owner.toString() !== userId) {
+    throw new APIError(
+      "You can only edit your own listing",
+      403
+    );
+  }
+
+  Object.assign(listing, data);
+
+  await listing.save();
+
+  return listing;
+
+}
   /* ================= DELETE LISTING ================= */
 
-  static async deleteListing(id, ownerId) {
+  static async deleteListing(id, ownerId, role) {
 
-    const listing = await PGListing.findById(id);
+  const listing = await PGListing.findById(id);
 
-    if (!listing) {
-      throw new APIError("Listing not found", 404);
-    }
-
-    if (listing.owner.toString() !== ownerId && req.user.role !== "admin") {
-      throw new APIError("Unauthorized", 403);
-    }
-
-    listing.isDeleted = true;
-
-    await listing.save();
-
-    return { message: "Listing deleted successfully" };
-
+  if (!listing) {
+    throw new APIError("Listing not found", 404);
   }
 
+  /* OWNER OR ADMIN CHECK */
 
+  if (listing.owner.toString() !== ownerId && role !== "admin") {
+    throw new APIError("Unauthorized", 403);
+  }
+
+  listing.isDeleted = true;
+
+  await listing.save();
+
+  return { message: "Listing deleted successfully" };
+
+}
   /* ================= UPDATE AVAILABILITY ================= */
 
   static async updateAvailability(id, ownerId, availableRooms) {

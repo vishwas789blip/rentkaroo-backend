@@ -55,7 +55,7 @@ router.post(
 router.put(
   "/:id",
   authenticate,
-  authorize("pg_owner", "admin"),
+  authorize("pg_owner"),
   upload.array("images", 5),
   asyncWrapper(pgListingController.updateListing)
 );
