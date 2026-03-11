@@ -1,38 +1,26 @@
-import Support from "../models/support.js";
+import { supportService } from "../services/supportService.js";
 
 export const createTicket = async (req, res) => {
   try {
-    const { subject, message } = req.body;
+    const { name, email, subject, message } = req.body;
+    
+    // If user is logged in, use their info; otherwise use body info
+    const ticketData = {
+      user: req.user?.id || null,
+      name: req.user?.name || name,
+      email: req.user?.email || email,
+      subject: subject?.trim(),
+      message: message?.trim()
+    };
 
-    // 1. Validation
-    if (!subject || !message) {
-      return res.status(400).json({
-        success: false,
-        message: "Please provide both a subject and a message."
-      });
+    if (!ticketData.name || !ticketData.email || !ticketData.message) {
+      return res.status(400).json({ success: false, message: "Missing required fields." });
     }
 
-    // 2. Database Operation
-    // Note: Assuming req.user is populated by your auth middleware
-    const ticket = await Support.create({
-      user: req.user.id,
-      subject: subject.trim(),
-      message: message.trim()
-    });
+    const ticket = await supportService.createTicket(ticketData);
 
-    // 3. Success Response
-    res.status(201).json({
-      success: true,
-      message: "Ticket created successfully",
-      data: ticket
-    });
-
+    res.status(201).json({ success: true, data: ticket });
   } catch (error) {
-    // 4. Error Handling
-    console.error("Error creating support ticket:", error);
-    res.status(500).json({
-      success: false,
-      message: "Internal server error. Please try again later."
-    });
+    res.status(500).json({ success: false, message: error.message });
   }
 };

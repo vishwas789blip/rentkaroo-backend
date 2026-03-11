@@ -1,6 +1,21 @@
 import Support from "../models/support.js";
 
 export const supportService = {
+  async createTicket(ticketData) {
+    return await Support.create(ticketData);
+  },
+
+  async adminReply(ticketId, adminId, replyMessage) {
+    return await Support.findByIdAndUpdate(
+      ticketId,
+      {
+        adminReply: { message: replyMessage, repliedAt: new Date(), admin: adminId },
+        status: "resolved"
+      },
+      { new: true }
+    );
+  },
+
   // Logic for a user creating a ticket
   async createTicket(ticketData, userId) {
     return await Support.create({
