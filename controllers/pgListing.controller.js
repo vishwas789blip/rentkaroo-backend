@@ -125,7 +125,7 @@ export const updateListing = async (req, res) => {
         roomType: req.body.roomType
       }
     };
-
+e
     const value = validate(listingSchema, parsedBody);
 
     const listing = await PGListingService.updateListing(
