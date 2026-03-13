@@ -4,11 +4,8 @@ import { APIError } from './errorHandler.js';
 // 🔐 Extract Token Safely
 const extractToken = (req) => {
   const authHeader = req.headers.authorization;
-
   if (!authHeader) return null;
-
   if (!authHeader.startsWith('Bearer ')) return null;
-
   return authHeader.split(' ')[1];
 };
 

@@ -38,7 +38,7 @@ role: {
   type: String,
   enum: ["user", "pg_owner", "admin"], 
   default: "user",
-  uppercase: true, 
+  uppercase: false, 
   index: true
 },
 

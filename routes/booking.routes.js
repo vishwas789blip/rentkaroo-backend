@@ -7,9 +7,6 @@ import * as bookingController from "../controllers/booking.controller.js";
 
 const router = express.Router();
 
-/* ===============================
-   USER ROUTES
-=============================== */
 
 // Create Booking
 router.post(
@@ -36,10 +33,6 @@ router.patch(
   asyncWrapper(bookingController.cancelBooking)
 );
 
-
-/* ===============================
-   OWNER ROUTES
-=============================== */
 
 // Get owner bookings
 router.get(
@@ -74,10 +67,6 @@ router.get(
 );
 
 
-/* ===============================
-   ADMIN ROUTES
-=============================== */
-
 // Get all bookings (admin)
 router.get(
   "/admin/all",
@@ -87,10 +76,6 @@ router.get(
 );
 
 
-/* ===============================
-   SINGLE BOOKING
-   (Keep this last)
-=============================== */
 
 router.get(
   "/:id",
