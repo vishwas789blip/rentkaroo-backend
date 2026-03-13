@@ -47,8 +47,10 @@ export const authorize = (...roles) => {
       throw new APIError('User not authenticated', 401);
     }
 
+    console.log(`Access Denied. Token Role: ${req.user.role} | Required Roles: ${roles}`);
+
     if (!roles.includes(req.user.role)) {
-      throw new APIError('Insufficient permissions', 403);
+      throw new APIError(`Forbidden: Requires ${roles} role`, 403);
     }
 
     next();
