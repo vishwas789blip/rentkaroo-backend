@@ -24,7 +24,7 @@ router.post(
 router.get(
   "/my",
   authenticate,
-  authorize("USER", "PG_OWNER", "ADMIN"),
+  authorize("user", "pg_owner", "admin"),
   asyncWrapper(bookingController.getUserBookings)
 );
 

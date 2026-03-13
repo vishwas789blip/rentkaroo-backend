@@ -18,7 +18,7 @@ const registerSchema = Joi.object({
 
   password: Joi.string().min(6).required(),
 
-  role: Joi.string().valid("USER", "PG_OWNER").required()
+  role: Joi.string().valid("user", "pg_owner").required()
 });
 
 const loginSchema = Joi.object({

@@ -36,8 +36,8 @@ const userSchema = new mongoose.Schema(
   /* ================= UPDATED ROLE SCHEMA ================= */
 role: {
   type: String,
-  enum: ["USER", "PG_OWNER", "ADMIN"], 
-  default: "USER",
+  enum: ["user", "pg_owner", "admin"], 
+  default: "user",
   uppercase: true, 
   index: true
 },
