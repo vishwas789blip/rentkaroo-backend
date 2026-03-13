@@ -39,60 +39,77 @@ const forgotPasswordSchema = Joi.object({
   email: Joi.string().email().required()
 });
 
+const verifyOTPSchema = Joi.object({
+  email: Joi.string().email().required(),
+  otp: Joi.string().length(6).required()
+});
+
+
 const resetPasswordSchema = Joi.object({
   newPassword: Joi.string().min(6).required()
 });
 
-/* ================= REGISTER ================= */
+/* ================= REGISTER CONTROLLER ================= */
+
 export const register = async (req, res) => {
+  // 1. Validate Input
   const { error, value } = registerSchema.validate(req.body, { abortEarly: false });
-  if (error) return res.status(400).json({ success: false, message: error.details.map(d => d.message).join(", ") });
+  if (error) {
+    return res.status(400).json({
+      success: false,
+      message: error.details.map(d => d.message).join(", ")
+    });
+  }
 
-  const { name, email, phone, password, role } = value; 
+  const { name, email, phone, password, role } = value;
 
+  // 2. Check Existence
   const existingUser = await User.findOne({ email });
-  if (existingUser) return res.status(400).json({ success: false, message: "Email already registered" });
+  if (existingUser) {
+    return res.status(400).json({ success: false, message: "Email already registered" });
+  }
 
+  // 3. Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  // 4. Create User 
   const user = await User.create({
     name,
     email,
     phone,
     password, 
-    role, 
+    role,
+    verificationOTP: otp,
+    verificationOTPExpiry: Date.now() + 600000, // 10 minutes
     isVerified: false
   });
 
-  const verificationToken = crypto.randomBytes(32).toString("hex");
-  const hashedToken = crypto.createHash("sha256").update(verificationToken).digest("hex");
-
-  user.verificationToken = hashedToken;
-  user.verificationTokenExpiry = Date.now() + 3600000;
-  await user.save();
-
+  // 5. Send OTP via Resend
   try {
     await sendEmail(
-      user.email,
-      "Verify Your Email - RentKaroo",
+      email,
+      "Verify Your Account - RentKaroo",
       `
-        <div style="font-family: sans-serif; padding: 20px;">
-          <h2>Welcome to RentKaroo, ${name}!</h2>
-          <p>Click the button below to verify your account:</p>
-          <a href="${process.env.FRONTEND_URL}/verify-email/${verificationToken}" 
-             style="background: #0fb478; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; display: inline-block;">
-            Verify Email
-          </a>
-        </div>
+      <div style="font-family: sans-serif; border: 1px solid #eee; padding: 20px; border-radius: 10px;">
+        <h2 style="color: #0fb478;">Welcome to RentKaroo!</h2>
+        <p>Hello ${name},</p>
+        <p>Your verification code is:</p>
+        <h1 style="letter-spacing: 5px; color: #333;">${otp}</h1>
+        <p>This code will expire in 10 minutes. Please do not share this OTP with anyone.</p>
+      </div>
       `
     );
   } catch (emailError) {
-    console.error("Email sending failed:", emailError);
+    console.error("Email failed but user created:", emailError);
+    // We don't block the response so the user can try "Resend OTP" later
   }
 
   res.status(201).json({
     success: true,
-    message: "Registration successful. Please check your email for the verification link."
+    message: "Registration successful. Please enter the OTP sent to your email."
   });
 };
+
 
 /* ================= LOGIN ================= */
 
@@ -141,43 +158,51 @@ export const refreshToken = async (req, res) => {
 
 };
 
+/* ================= VERIFY OTP CONTROLLER ================= */
 
-/* ================= VERIFY EMAIL ================= */
+export const verifyOTP = async (req, res) => {
+  // 1. Validate Input
+  const { error, value } = verifyOTPSchema.validate(req.body);
+  if (error) {
+    return res.status(400).json({ success: false, message: error.details[0].message });
+  }
 
-export const verifyEmail = async (req, res) => {
+  const { email, otp } = value;
 
-  const { token } = req.params;
-
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(token)
-    .digest("hex");
-
+  // 2. Find User with matching OTP and valid expiry
   const user = await User.findOne({
-    verificationToken: hashedToken,
-    verificationTokenExpiry: { $gt: Date.now() }
+    email,
+    verificationOTP: otp,
+    verificationOTPExpiry: { $gt: Date.now() }
   });
 
   if (!user) {
     return res.status(400).json({
       success: false,
-      message: "Invalid or expired token"
+      message: "Invalid or expired OTP"
     });
   }
 
+  // 3. Update User Status
   user.isVerified = true;
-  user.verificationToken = undefined;
-  user.verificationTokenExpiry = undefined;
-
+  user.verificationOTP = undefined; // Clear OTP fields
+  user.verificationOTPExpiry = undefined;
   await user.save();
+
+  // 4. Optionally generate tokens immediately so they are "logged in"
+  const accessToken = AuthService.generateToken(user);
+  const refreshToken = AuthService.generateToken(user, "refresh");
 
   res.status(200).json({
     success: true,
-    message: "Email verified successfully"
+    message: "Account verified successfully!",
+    data: {
+      user: { id: user._id, name: user.name, email: user.email, role: user.role },
+      accessToken,
+      refreshToken
+    }
   });
-
 };
-
 
 /* ================= FORGOT PASSWORD ================= */
 

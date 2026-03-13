@@ -71,9 +71,10 @@ role: {
 
   /* ================= EMAIL VERIFICATION ================= */
 
-  verificationToken: String,
-  verificationTokenExpiry: Date,
-
+verificationOTP: {
+  type: String, 
+},
+verificationOTPExpiry: Date,
   /* ================= PASSWORD RESET ================= */
 
   resetPasswordToken: String,
