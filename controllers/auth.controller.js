@@ -44,71 +44,55 @@ const resetPasswordSchema = Joi.object({
 });
 
 /* ================= REGISTER ================= */
-
 export const register = async (req, res) => {
-
   const { error, value } = registerSchema.validate(req.body, { abortEarly: false });
+  if (error) return res.status(400).json({ success: false, message: error.details.map(d => d.message).join(", ") });
 
-  if (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.details.map(d => d.message).join(", ")
-    });
-  }
-
-  const { name, email, phone, password } = value;
+  const { name, email, phone, password, role } = value; 
 
   const existingUser = await User.findOne({ email });
-
-  if (existingUser) {
-    return res.status(400).json({
-      success: false,
-      message: "Email already registered"
-    });
-  }
-
-  const hashedPassword = await bcrypt.hash(password, 10);
+  if (existingUser) return res.status(400).json({ success: false, message: "Email already registered" });
 
   const user = await User.create({
     name,
     email,
     phone,
-    password: hashedPassword,
-    role: "user",
+    password, 
+    role, 
     isVerified: false
   });
 
   const verificationToken = crypto.randomBytes(32).toString("hex");
-
-  const hashedToken = crypto
-    .createHash("sha256")
-    .update(verificationToken)
-    .digest("hex");
+  const hashedToken = crypto.createHash("sha256").update(verificationToken).digest("hex");
 
   user.verificationToken = hashedToken;
   user.verificationTokenExpiry = Date.now() + 3600000;
-
   await user.save();
 
-  await sendEmail(
-    user.email,
-    "Verify Your Email - RentKaroo",
-    `
-      <h2>Welcome to RentKaroo</h2>
-      <p>Please verify your email:</p>
-      <a href="${process.env.FRONTEND_URL}/verify-email/${verificationToken}">
-        Verify Email
-      </a>
-    `
-  );
+  try {
+    await sendEmail(
+      user.email,
+      "Verify Your Email - RentKaroo",
+      `
+        <div style="font-family: sans-serif; padding: 20px;">
+          <h2>Welcome to RentKaroo, ${name}!</h2>
+          <p>Click the button below to verify your account:</p>
+          <a href="${process.env.FRONTEND_URL}/verify-email/${verificationToken}" 
+             style="background: #0fb478; color: white; padding: 12px 25px; text-decoration: none; border-radius: 8px; display: inline-block;">
+            Verify Email
+          </a>
+        </div>
+      `
+    );
+  } catch (emailError) {
+    console.error("Email sending failed:", emailError);
+  }
 
   res.status(201).json({
     success: true,
-    message: "Registration successful. Please verify your email."
+    message: "Registration successful. Please check your email for the verification link."
   });
-
 };
-
 
 /* ================= LOGIN ================= */
 
@@ -296,14 +280,18 @@ export const resetPassword = async (req, res) => {
 
 
 /* ================= CURRENT USER ================= */
-
 export const getCurrentUser = async (req, res) => {
-
   res.status(200).json({
     success: true,
-    data: { user: req.user }
+    data: { 
+      user: {
+        id: req.user._id,
+        name: req.user.name,
+        email: req.user.email,
+        role: req.user.role 
+      }
+    }
   });
-
 };
 
 

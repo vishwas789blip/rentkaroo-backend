@@ -6,47 +6,40 @@ import User from "../models/User.js";
 import PGListing from "../models/PGListing.js";
 import Booking from "../models/Booking.js";
 
+import { APIError } from "../middleware/errorHandler.js";
+
 const router = express.Router();
 
 /* ===============================
-   Dashboard Stats
+    Dashboard Stats (Optimized)
 =============================== */
-
 router.get(
   "/dashboard/stats",
   authenticate,
-  authorize("admin"),
+  authorize("ADMIN"), // Pro-tip: Match the case used in AuthService
   asyncWrapper(async (req, res) => {
-
-    const totalUsers = await User.countDocuments();
-
-    const totalListings = await PGListing.countDocuments();
-
-    const totalBookings = await Booking.countDocuments();
-
-    const approvedBookings = await Booking.find({
-      status: "approved"
-    });
-
-    const totalRevenue = approvedBookings.reduce(
-      (sum, booking) => sum + (booking.totalPrice || 0),
-      0
-    );
+    const [totalUsers, totalListings, totalBookings, revenueData] = await Promise.all([
+      User.countDocuments(),
+      PGListing.countDocuments(),
+      Booking.countDocuments(),
+      // Aggregation: Database does the math, much faster!
+      Booking.aggregate([
+        { $match: { status: "approved" } },
+        { $group: { _id: null, total: { $sum: "$totalPrice" } } }
+      ])
+    ]);
 
     res.status(200).json({
       success: true,
-      message: "Dashboard stats",
       data: {
         totalUsers,
         totalListings,
         totalBookings,
-        totalRevenue
+        totalRevenue: revenueData[0]?.total || 0
       }
     });
-
   })
 );
-
 
 /* ===============================
    Get All Users
@@ -104,29 +97,29 @@ router.delete(
 
 
 /* ===============================
-   Suspend User
+    Suspend User (With Check)
 =============================== */
-
 router.patch(
   "/users/:id/suspend",
   authenticate,
-  authorize("admin"),
+  authorize("ADMIN"),
   asyncWrapper(async (req, res) => {
-
     const user = await User.findByIdAndUpdate(
       req.params.id,
-      { isSuspended: true },
+      { isActive: false }, 
       { new: true }
     );
 
+    if (!user) throw new APIError("User not found", 404);
+
     res.status(200).json({
       success: true,
-      message: "User suspended",
+      message: "User account deactivated",
       data: user
     });
-
   })
 );
+
 
 
 /* ===============================
@@ -151,32 +144,29 @@ router.get(
   })
 );
 
-
 /* ===============================
-   Verify Listing
+    Verify Listing (With Check)
 =============================== */
-
 router.patch(
   "/listings/:id/verify",
   authenticate,
-  authorize("admin"),
+  authorize("ADMIN"),
   asyncWrapper(async (req, res) => {
-
     const listing = await PGListing.findByIdAndUpdate(
       req.params.id,
       { status: "approved" },
       { new: true }
     );
 
+    if (!listing) throw new APIError("Listing not found", 404);
+
     res.status(200).json({
       success: true,
       message: "Listing verified",
       data: listing
     });
-
   })
 );
-
 
 /* ===============================
    Reject Listing
@@ -247,7 +237,5 @@ router.get(
 
   })
 );
-
-
 
 export default router;

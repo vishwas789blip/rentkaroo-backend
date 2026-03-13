@@ -33,12 +33,14 @@ const userSchema = new mongoose.Schema(
     select: false
   },
 
-  role: {
-    type: String,
-    enum: ["user", "pg_owner", "admin"],
-    default: "user",
-    index: true
-  },
+  /* ================= UPDATED ROLE SCHEMA ================= */
+role: {
+  type: String,
+  enum: ["USER", "PG_OWNER", "ADMIN"], 
+  default: "USER",
+  uppercase: true, 
+  index: true
+},
 
   profileImage: {
     url: String,
@@ -135,6 +137,10 @@ userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;
   return obj;
+};
+
+userSchema.methods.isLocked = function() {
+  return !!(this.lockUntil && this.lockUntil > Date.now());
 };
 
 
