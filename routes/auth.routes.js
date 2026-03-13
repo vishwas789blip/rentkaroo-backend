@@ -31,7 +31,14 @@ router.post(
   asyncWrapper(authController.refreshToken)
 );
 
-// Verify Email
+// ✅ NEW: Verify OTP (Isse aapka 404 fix ho jayega)
+router.post(
+  "/verify-otp",
+  authLimiter,
+  asyncWrapper(authController.verifyOTP) 
+);
+
+// (Optional) Purana verify-email aap hata sakte hain ya rehne de sakte hain
 router.get(
   "/verify-email/:token",
   asyncWrapper(authController.verifyEmail)
@@ -51,26 +58,22 @@ router.post(
   asyncWrapper(authController.resetPassword)
 );
 
-
 /* ===============================
    PROTECTED ROUTES
 =============================== */
 
-// Current Logged-in User
 router.get(
   "/me",
   authenticate,
   asyncWrapper(authController.getCurrentUser)
 );
 
-// Change Password
 router.post(
   "/change-password",
   authenticate,
   asyncWrapper(authController.changePassword)
 );
 
-// Logout
 router.post(
   "/logout",
   authenticate,
