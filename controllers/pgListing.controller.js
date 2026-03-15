@@ -33,17 +33,16 @@ const listingSchema = Joi.object({
 
 });
 
-/* ================= CREATE LISTING ================= */
 
 export const createListing = async (req, res) => {
-
   try {
-
+    // 1. Manually map the flat fields from Frontend into the Objects Joi wants
     const parsedBody = {
       title: req.body.title,
       description: req.body.description,
       pricePerMonth: Number(req.body.pricePerMonth),
 
+      // Map individual address fields into the address object
       address: {
         street: req.body.street,
         city: req.body.city,
@@ -51,6 +50,7 @@ export const createListing = async (req, res) => {
         pincode: req.body.pincode
       },
 
+      // Map room fields into the rooms object
       rooms: {
         availableRooms: Number(req.body.availableRooms),
         roomType: req.body.roomType
@@ -63,14 +63,21 @@ export const createListing = async (req, res) => {
         : []
     };
 
+    // 2. Run the validation
     const value = validate(listingSchema, parsedBody);
 
+    // 3. Handle Images
     const images =
       req.files?.map(file => ({
         url: file.path,
         publicId: file.filename
       })) || [];
 
+    if (images.length === 0) {
+      return res.status(400).json({ success: false, message: "At least one image is required" });
+    }
+
+    // 4. Save
     const listing = await PGListingService.createListing(
       { ...value, images },
       req.user.id
@@ -83,16 +90,12 @@ export const createListing = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error("CREATE LISTING ERROR:", error);
-
     res.status(400).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
 
 export const updateListing = async (req, res) => {
