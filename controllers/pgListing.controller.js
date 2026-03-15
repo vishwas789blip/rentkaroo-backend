@@ -26,19 +26,10 @@ const listingSchema = Joi.object({
       .required()
   }).required(),
 
-  amenities: Joi.array().items(
-    Joi.string().valid(
-      "wifi",
-      "ac",
-      "parking",
-      "laundry",
-      "kitchen",
-      "garden",
-      "gym",
-      "security",
-      "electricity bill"
-    )
-  )
+  amenities: Joi.array()
+  .items(Joi.string().lowercase().trim())
+  .unique() 
+  .default([])
 
 });
 

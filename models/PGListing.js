@@ -72,21 +72,12 @@ const pgListingSchema = new mongoose.Schema(
     },
 
     amenities: [
-      {
-        type: String,
-        enum: [
-          "wifi",
-          "ac",
-          "parking",
-          "laundry",
-          "kitchen",
-          "garden",
-          "gym",
-          "security",
-          "electricity bill"
-        ]
-      }
-    ],
+  {
+    type: String,
+    trim: true,
+    lowercase: true
+  }
+],
 
     /* ================= RATING ================= */
 
