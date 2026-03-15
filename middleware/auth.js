@@ -40,20 +40,27 @@ export const authenticate = (req, res, next) => {
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
+
     if (!req.user) {
-      throw new APIError('User not authenticated', 401);
+      throw new APIError("User not authenticated", 401);
     }
 
-    console.log(`Access Denied. Token Role: ${req.user.role} | Required Roles: ${roles}`);
+    const userRole = req.user.role?.toLowerCase();
 
-    if (!roles.includes(req.user.role)) {
-      throw new APIError(`Forbidden: Requires ${roles} role`, 403);
+    console.log(
+      `Access Check → User Role: ${userRole} | Allowed: ${roles}`
+    );
+
+    if (!roles.map(r => r.toLowerCase()).includes(userRole)) {
+      throw new APIError(
+        `Forbidden: Requires ${roles.join(", ")} role`,
+        403
+      );
     }
 
     next();
   };
 };
-
 // ================= OPTIONAL AUTH =================
 
 export const optionalAuth = (req, res, next) => {

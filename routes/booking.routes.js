@@ -7,7 +7,6 @@ import * as bookingController from "../controllers/booking.controller.js";
 
 const router = express.Router();
 
-
 // Create Booking
 router.post(
   "/",
@@ -74,8 +73,6 @@ router.get(
   authorize("admin"),
   asyncWrapper(bookingController.getAllBookingsAdmin)
 );
-
-
 
 router.get(
   "/:id",
