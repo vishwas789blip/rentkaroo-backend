@@ -10,7 +10,7 @@ const router = express.Router();
 // 1. Create a ticket (Public or Logged in)
 router.post(
   "/",
-  // Optional: add 'authenticate' here if you want to link tickets to users
+  authenticate,
   asyncWrapper(async (req, res) => {
     const { name, email, subject, message } = req.body;
 
@@ -33,8 +33,6 @@ router.post(
   })
 );
 
-// 2. Get User's Own Tickets (LOGGED IN USER ONLY)
-// CRITICAL: This MUST come before authorize("admin")
 router.get(
   "/my-tickets",
   authenticate,
@@ -51,8 +49,6 @@ router.get(
   })
 );
 
-/* ================= ADMIN ONLY ROUTES ================= */
-// From this point down, only Admins can pass
 router.use(authenticate, authorize("admin"));
 
 // Get All Tickets
