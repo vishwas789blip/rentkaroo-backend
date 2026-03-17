@@ -300,9 +300,7 @@ export const resetPassword = async (req, res) => {
     success: true,
     message: "Password reset successful"
   });
-
 };
-
 
 /* ================= CURRENT USER ================= */
 export const getCurrentUser = async (req, res) => {
@@ -319,7 +317,23 @@ export const getCurrentUser = async (req, res) => {
   });
 };
 
+export const getListingById = async (req, res) => {
+  try {
+    const listing = await Listing.findById(req.params.id)
+      .populate("owner", "name email phone role"); // Add phone and role here
 
+    if (!listing) {
+      return res.status(404).json({ success: false, message: "Listing not found" });
+    }
+
+    res.status(200).json({ 
+      success: true, 
+      data: { listing } 
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
 /* ================= CHANGE PASSWORD ================= */
 
 export const changePassword = async (req, res) => {

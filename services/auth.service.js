@@ -52,7 +52,7 @@ export class AuthService {
   }
 
   /* ================= LOGIN ================= */
-  static async login(email, password) {
+static async login(email, password) {
   const user = await User.findOne({ email }).select("+password");
 
   if (!user || user.isActive === false) {
@@ -71,11 +71,9 @@ export class AuthService {
 
   if (!isMatch) {
     user.loginAttempts += 1;
-    
     if (user.loginAttempts >= 5) {
       user.lockUntil = Date.now() + 3600000; 
     }
-    
     await user.save();
     throw new APIError("Invalid credentials", 401);
   }
@@ -85,8 +83,15 @@ export class AuthService {
   user.lastLogin = Date.now();
   await user.save();
 
+  // FIX: Return the name and phone explicitly, and keep role consistent
   return {
-    user: { id: user._id, name: user.name, email: user.email, role: user.role },
+    user: { 
+      id: user._id, 
+      name: user.name, // Ensure this field exists in your User Schema
+      email: user.email, 
+      phone: user.phone, // Added for the "Contact Host" button
+      role: user.role.toLowerCase() // Use lowercase to match frontend expectations
+    },
     accessToken: this.generateToken(user),
     refreshToken: this.generateToken(user, "refresh")
   };

@@ -248,16 +248,11 @@ export class BookingService {
         { _id: booking.pgListing },
         { $inc: { "rooms.availableRooms": booking.numberOfRooms } }
       );
-
     }
-
     booking.status = "cancelled";
-
     await booking.save();
-
     return booking;
   }
-
 
   /* ================= OWNER ANALYTICS ================= */
 
@@ -288,8 +283,6 @@ export class BookingService {
         }
       }
     ]);
-
- 
 
     return {
       totalBookings,

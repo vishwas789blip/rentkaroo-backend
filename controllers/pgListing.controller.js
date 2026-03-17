@@ -99,7 +99,6 @@ export const createListing = async (req, res) => {
 };
 
 export const updateListing = async (req, res) => {
-
   try {
 
     const parsedBody = {
@@ -117,15 +116,21 @@ export const updateListing = async (req, res) => {
       rooms: {
         availableRooms: Number(req.body.availableRooms),
         roomType: req.body.roomType
-      }
+      },
+
+      amenities: Array.isArray(req.body.amenities)
+        ? req.body.amenities
+        : req.body.amenities
+        ? [req.body.amenities]
+        : []
     };
-e
+
     const value = validate(listingSchema, parsedBody);
 
     const listing = await PGListingService.updateListing(
       req.params.id,
       value,
-      req.user.id   // logged-in user id
+      req.user.id
     );
 
     res.status(200).json({
@@ -142,7 +147,6 @@ e
     });
 
   }
-
 };
 
 /* ================= GET ALL LISTINGS ================= */
@@ -151,7 +155,23 @@ export const getListings = async (req, res) => {
 
   try {
 
-    const result = await PGListingService.getListings(req.query);
+    const {
+      search,
+      city,
+      minPrice,
+      maxPrice,
+      amenities
+    } = req.query;
+
+    const filters = {
+      search: search || "",
+      city: city || "",
+      minPrice: minPrice ? Number(minPrice) : undefined,
+      maxPrice: maxPrice ? Number(maxPrice) : undefined,
+      amenities: amenities ? amenities.split(",") : []
+    };
+
+    const result = await PGListingService.getListings(filters);
 
     res.status(200).json({
       success: true,
@@ -165,11 +185,9 @@ export const getListings = async (req, res) => {
 
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || "Failed to fetch listings"
     });
-
   }
-
 };
 
 /* ================= OWNER LISTINGS ================= */
