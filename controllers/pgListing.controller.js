@@ -152,24 +152,15 @@ export const updateListing = async (req, res) => {
 /* ================= GET ALL LISTINGS ================= */
 
 export const getListings = async (req, res) => {
-
   try {
+    const { search, city, minPrice, maxPrice, amenities } = req.query;
 
-    const {
-      search,
-      city,
-      minPrice,
-      maxPrice,
-      amenities
-    } = req.query;
-
-    const filters = {
-      search: search || "",
-      city: city || "",
-      minPrice: minPrice ? Number(minPrice) : undefined,
-      maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      amenities: amenities ? amenities.split(",") : []
-    };
+    const filters = {};
+    if (search) filters.search = search;
+    if (city && city !== "All") filters.city = city;
+    if (minPrice) filters.minPrice = Number(minPrice);
+    if (maxPrice) filters.maxPrice = Number(maxPrice);
+    if (amenities) filters.amenities = amenities.split(",");
 
     const result = await PGListingService.getListings(filters);
 
@@ -178,11 +169,8 @@ export const getListings = async (req, res) => {
       message: "Listings retrieved successfully",
       data: result
     });
-
   } catch (error) {
-
     console.error("GET LISTINGS ERROR:", error);
-
     res.status(500).json({
       success: false,
       message: error.message || "Failed to fetch listings"

@@ -24,7 +24,7 @@ export class PGListingService {
 
     /* ================= SEARCH ================= */
 
-    if (query.search) {
+    if (query.search && query.search.trim() !== "") {
       filter.$or = [
         { title: { $regex: query.search, $options: "i" } },
         { "address.city": { $regex: query.search, $options: "i" } },
@@ -33,13 +33,22 @@ export class PGListingService {
     }
 
     /* ================= LOCATION ================= */
-
-    if (query.location) {
-      filter.$or = [
-        { "address.city": { $regex: query.location, $options: "i" } },
-        { "address.state": { $regex: query.location, $options: "i" } }
-      ];
+    const location = query.location || query.city; 
+    if (location && location !== "All" && location.trim() !== "") {
+    const locationQuery = {
+      $or: [
+        { "address.city": { $regex: location, $options: "i" } },
+        { "address.state": { $regex: location, $options: "i" } }
+      ]
+    };
+    
+    if (filter.$or) {
+      filter.$and = [ { $or: filter.$or }, locationQuery ];
+      delete filter.$or;
+    } else {
+      filter.$or = locationQuery.$or;
     }
+  }
 
     /* ================= ROOM TYPE ================= */
 
@@ -65,16 +74,15 @@ export class PGListingService {
 
     /* ================= AMENITIES ================= */
 
-    if (query.amenities) {
+    if (query.amenities && query.amenities.length > 0) {
+    const amenitiesArray = Array.isArray(query.amenities)
+      ? query.amenities
+      : query.amenities.split(",").filter(a => a !== "");
 
-      const amenities = Array.isArray(query.amenities)
-        ? query.amenities
-        : query.amenities.split(",");
-
-      filter.amenities = { $all: amenities };
-
+    if (amenitiesArray.length > 0) {
+      filter.amenities = { $all: amenitiesArray };
     }
-
+  }
     /* ================= SORTING ================= */
 
     let sort = { createdAt: -1 };
@@ -97,24 +105,18 @@ export class PGListingService {
     /* ================= DATABASE QUERY ================= */
 
     const listings = await PGListing.find(filter)
-      .populate("owner", "name email")
-      .skip(skip)
-      .limit(limit)
-      .sort(sort);
+    .populate("owner", "name email")
+    .skip(skip)
+    .limit(limit)
+    .sort(sort);
 
-    const total = await PGListing.countDocuments(filter);
+  const total = await PGListing.countDocuments(filter);
 
-    return {
-      listings,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit)
-      }
-    };
-
-  }
-
+  return {
+    listings,
+    pagination: { total, page, pages: Math.ceil(total / limit) }
+  };
+}
 
   /* ================= GET SINGLE LISTING ================= */
 
@@ -225,6 +227,8 @@ export class PGListingService {
       throw new APIError("Listing not found", 404);
     }
     listing.status = "approved";
+    listing.isVerified = true;  
+    
     await listing.save();
     return listing;
 
