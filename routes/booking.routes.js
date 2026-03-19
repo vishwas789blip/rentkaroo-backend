@@ -32,7 +32,6 @@ router.patch(
   asyncWrapper(bookingController.cancelBooking)
 );
 
-
 // Get owner bookings
 router.get(
   "/owner",

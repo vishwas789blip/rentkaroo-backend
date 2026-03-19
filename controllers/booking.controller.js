@@ -88,40 +88,29 @@ export const createBooking = async (req, res) => {
 =============================== */
 
 export const getUserBookings = async (req, res) => {
-
   try {
-
     const bookings = await BookingService.getUserBookings(
       req.user.id
     );
-
     res.status(200).json({
       success: true,
       data: bookings
     });
-
   } catch (error) {
-
     console.error("User Booking Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
-
 
 /* ===============================
    Owner Bookings
 =============================== */
 
 export const getOwnerBookings = async (req, res) => {
-
   try {
-
     const bookings = await BookingService.getOwnerBookings(
       req.user.id
     );
@@ -130,20 +119,14 @@ export const getOwnerBookings = async (req, res) => {
       success: true,
       data: bookings
     });
-
   } catch (error) {
-
     console.error("Owner Booking Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
-
 
 /* ===============================
    Get Single Booking
@@ -163,29 +146,21 @@ export const getBooking = async (req, res) => {
       success: true,
       data: booking
     });
-
   } catch (error) {
-
     console.error("Get Booking Error:", error);
-
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
-
 
 /* ===============================
    Approve Booking
 =============================== */
 
 export const approveBooking = async (req, res) => {
-
   try {
-
     const booking = await BookingService.approveBooking(
       req.params.id,
       req.user.id
@@ -198,61 +173,45 @@ export const approveBooking = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error("Approve Booking Error:", error);
-
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
-
 
 /* ===============================
    Reject Booking
 =============================== */
 
 export const rejectBooking = async (req, res) => {
-
   try {
-
     const booking = await BookingService.rejectBooking(
       req.params.id,
       req.user.id,
       req.body.rejectionReason
     );
-
     res.status(200).json({
       success: true,
       message: "Booking rejected successfully",
       data: booking
     });
-
   } catch (error) {
-
     console.error("Reject Booking Error:", error);
-
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
-
 
 /* ===============================
    Cancel Booking
 =============================== */
 
 export const cancelBooking = async (req, res) => {
-
   try {
-
     const booking = await BookingService.cancelBooking(
       req.params.id,
       req.user.id
@@ -265,27 +224,20 @@ export const cancelBooking = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error("Cancel Booking Error:", error);
-
     res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
-
 
 /* ===============================
    Owner Analytics
 =============================== */
 
 export const getOwnerAnalytics = async (req, res) => {
-
   try {
-
     const analytics = await BookingService.getOwnerAnalytics(
       req.user.id
     );
@@ -296,16 +248,12 @@ export const getOwnerAnalytics = async (req, res) => {
     });
 
   } catch (error) {
-
     console.error("Analytics Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };
 
 /* ===============================
@@ -313,25 +261,18 @@ export const getOwnerAnalytics = async (req, res) => {
 =============================== */
 
 export const getAllBookingsAdmin = async (req, res) => {
-
   try {
-
     const bookings = await BookingService.getAllBookingsAdmin();
-
     res.status(200).json({
       success: true,
       data: bookings
     });
 
   } catch (error) {
-
     console.error("Admin Booking Error:", error);
-
     res.status(500).json({
       success: false,
       message: error.message
     });
-
   }
-
 };

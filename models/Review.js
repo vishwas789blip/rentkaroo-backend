@@ -51,48 +51,37 @@ const reviewSchema = new mongoose.Schema(
       ref: "User"
     }
   ],
-
   /* ================= OWNER REPLY ================= */
-
   ownerReply: {
     message: String,
     repliedAt: Date
   },
-
   /* ================= REVIEW IMAGES ================= */
-
   images: [
     {
       url: String,
       publicId: String
     }
   ],
-
   /* ================= SOFT DELETE ================= */
-
   isDeleted: {
     type: Boolean,
     default: false
   }
-
 },
 { timestamps: true }
 );
-
-
 /* ================= PREVENT DUPLICATE REVIEW ================= */
 
 reviewSchema.index(
   { user: 1, pgListing: 1 },
-  { unique: true }
+  { unique: true, sparse: true }
 );
-
 
 /* ================= INDEXES ================= */
 
 reviewSchema.index({ pgListing: 1 });
 reviewSchema.index({ rating: 1 });
 reviewSchema.index({ createdAt: -1 });
-
 
 export default mongoose.model("Review", reviewSchema);

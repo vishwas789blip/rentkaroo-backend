@@ -21,11 +21,9 @@ router.get(
   asyncWrapper(reviewController.getReview)
 );
 
-
 /* ===============================
    PROTECTED ROUTES
 =============================== */
-
 // Get logged-in user's reviews
 router.get(
   "/user/my-reviews",
