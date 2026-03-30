@@ -24,14 +24,12 @@ export const authenticate = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
     req.user = decoded; // { id, role, email, etc }
     next();
   } catch (error) {
     if (error.name === 'TokenExpiredError') {
       throw new APIError('Token expired', 401);
     }
-
     throw new APIError('Invalid token', 401);
   }
 };
@@ -40,24 +38,19 @@ export const authenticate = (req, res, next) => {
 
 export const authorize = (...roles) => {
   return (req, res, next) => {
-
     if (!req.user) {
       throw new APIError("User not authenticated", 401);
     }
-
     const userRole = req.user.role?.toLowerCase();
-
     console.log(
       `Access Check → User Role: ${userRole} | Allowed: ${roles}`
     );
-
     if (!roles.map(r => r.toLowerCase()).includes(userRole)) {
       throw new APIError(
         `Forbidden: Requires ${roles.join(", ")} role`,
         403
       );
     }
-
     next();
   };
 };
@@ -65,17 +58,14 @@ export const authorize = (...roles) => {
 
 export const optionalAuth = (req, res, next) => {
   const token = extractToken(req);
-
   if (!token || !process.env.JWT_SECRET) {
     return next();
   }
-
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
   } catch (error) {
-    // Silently ignore invalid token
+    console.warn("Optional Auth Warning:", error.message);
   }
-
   next();
 };

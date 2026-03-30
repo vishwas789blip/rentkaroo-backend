@@ -30,24 +30,16 @@ export class AuthService {
     const existingUser = await User.findOne({ email });
     if (existingUser) throw new APIError("User already exists", 409);
 
-    // Generate Verification Token
-    const verificationToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto.createHash("sha256").update(verificationToken).digest("hex");
-
     const user = await User.create({
       name,
       email,
       phone,
       password, // Assumes model handles hashing
-      role: role?.toUpperCase() || "USER",
-      isVerified: false,
-      verificationToken: hashedToken,
-      verificationTokenExpiry: Date.now() + 3600000, // 1 hour
+      role: role || "user",
     });
 
     return {
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
-      verificationToken, 
     };
   }
 
@@ -61,10 +53,6 @@ static async login(email, password) {
 
   if (user.isLocked()) {
     throw new APIError("Account is temporarily locked. Try again later.", 403);
-  }
-
-  if (!user.isVerified) {
-    throw new APIError("Please verify your email first", 403);
   }
 
   const isMatch = await user.matchPassword(password);

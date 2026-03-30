@@ -52,29 +52,6 @@ role: {
     state: String
   },
 
-  /* ================= ACCOUNT STATUS ================= */
-
-  isActive: {
-    type: Boolean,
-    default: true
-  },
-
-  isVerified: {
-    type: Boolean,
-    default: false
-  },
-
-  isDeleted: {
-    type: Boolean,
-    default: false
-  },
-
-  /* ================= EMAIL VERIFICATION ================= */
-
-verificationOTP: {
-  type: String, 
-},
-verificationOTPExpiry: Date,
   /* ================= PASSWORD RESET ================= */
 
   resetPasswordToken: String,
@@ -103,14 +80,12 @@ verificationOTPExpiry: Date,
 { timestamps: true }
 );
 
-
 /* ================= AUTO HIDE DELETED USERS ================= */
 
 userSchema.pre(/^find/, function (next) {
   this.find({ isDeleted: { $ne: true } });
   next();
 });
-
 
 /* ================= PASSWORD HASHING ================= */
 
@@ -124,16 +99,13 @@ userSchema.pre("save", async function (next) {
   next();
 });
 
-
 /* ================= PASSWORD COMPARISON ================= */
 
 userSchema.methods.matchPassword = async function (enteredPassword) {
   return bcrypt.compare(enteredPassword, this.password);
 };
 
-
 /* ================= REMOVE PASSWORD FROM RESPONSE ================= */
-
 userSchema.methods.toJSON = function () {
   const obj = this.toObject();
   delete obj.password;

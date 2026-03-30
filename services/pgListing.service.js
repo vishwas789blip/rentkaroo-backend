@@ -2,9 +2,7 @@ import PGListing from "../models/PGListing.js";
 import { APIError } from "../middleware/errorHandler.js";
 
 export class PGListingService {
-
   /* ================= CREATE LISTING ================= */
-
   static async createListing(data, ownerId) {
     const listing = await PGListing.create({
       ...data,
@@ -13,17 +11,12 @@ export class PGListingService {
     return listing;
   }
 
-
   /* ================= GET LISTINGS ================= */
-
   static async getListings(query) {
-
     const filter = {
       isDeleted: { $ne: true }
     };
-
     /* ================= SEARCH ================= */
-
     if (query.search && query.search.trim() !== "") {
       filter.$or = [
         { title: { $regex: query.search, $options: "i" } },
@@ -59,17 +52,13 @@ export class PGListingService {
     /* ================= PRICE RANGE ================= */
 
     if (query.minPrice || query.maxPrice) {
-
       filter.pricePerMonth = {};
-
       if (query.minPrice) {
         filter.pricePerMonth.$gte = Number(query.minPrice);
       }
-
       if (query.maxPrice) {
         filter.pricePerMonth.$lte = Number(query.maxPrice);
       }
-
     }
 
     /* ================= AMENITIES ================= */
@@ -86,22 +75,17 @@ export class PGListingService {
     /* ================= SORTING ================= */
 
     let sort = { createdAt: -1 };
-
     if (query.sort === "priceLow") {
       sort = { pricePerMonth: 1 };
     }
-
     if (query.sort === "priceHigh") {
       sort = { pricePerMonth: -1 };
     }
-
     /* ================= PAGINATION ================= */
 
     const page = Number(query.page) || 1;
     const limit = Number(query.limit) || 10;
-
     const skip = (page - 1) * limit;
-
     /* ================= DATABASE QUERY ================= */
 
     const listings = await PGListing.find(filter)
@@ -111,7 +95,6 @@ export class PGListingService {
     .sort(sort);
 
   const total = await PGListing.countDocuments(filter);
-
   return {
     listings,
     pagination: { total, page, pages: Math.ceil(total / limit) }
@@ -119,9 +102,7 @@ export class PGListingService {
 }
 
   /* ================= GET SINGLE LISTING ================= */
-
   static async getListingById(id) {
-
     const listing = await PGListing
       .findById(id)
       .populate("owner", "name email");
@@ -129,36 +110,25 @@ export class PGListingService {
     if (!listing || listing.isDeleted) {
       throw new APIError("Listing not found", 404);
     }
-
     return listing;
-
   }
 
-
   /* ================= OWNER LISTINGS ================= */
-
   static async getOwnerListings(ownerId) {
-
     return PGListing.find({
       owner: ownerId,
       isDeleted: { $ne: true }
     })
       .populate("owner", "name email")
       .sort({ createdAt: -1 });
-
   }
 
-
   /* ================= UPDATE LISTING ================= */
-
   static async updateListing(listingId, data, userId) {
     const listing = await PGListing.findById(listingId);
     if (!listing) {
       throw new APIError("Listing not found", 404);
     }
-
-    /* OWNER CHECK */
-
     if (listing.owner.toString() !== userId) {
       throw new APIError(
         "You can only edit your own listing",
@@ -175,53 +145,39 @@ export class PGListingService {
 
     await listing.save();
     return listing;
-
   }
 
-
   /* ================= DELETE LISTING ================= */
-
   static async deleteListing(id, ownerId, role) {
     const listing = await PGListing.findById(id);
     if (!listing) {
       throw new APIError("Listing not found", 404);
     }
-
     /* OWNER OR ADMIN CHECK */
     if (listing.owner.toString() !== ownerId && role !== "admin") {
       throw new APIError("Unauthorized", 403);
     }
-
     listing.isDeleted = true;
     await listing.save();
     return { message: "Listing deleted successfully" };
   }
 
-
   /* ================= UPDATE AVAILABILITY ================= */
-
   static async updateAvailability(id, ownerId, availableRooms) {
     const listing = await PGListing.findById(id);
-
     if (!listing) {
       throw new APIError("Listing not found", 404);
     }
-
     if (listing.owner.toString() !== ownerId) {
       throw new APIError("Unauthorized", 403);
     }
-
     listing.rooms.availableRooms = availableRooms;
     await listing.save();
     return listing;
-
   }
 
-
   /* ================= ADMIN APPROVE ================= */
-
   static async approveListing(id) {
-
     const listing = await PGListing.findById(id);
     if (!listing) {
       throw new APIError("Listing not found", 404);
@@ -231,22 +187,16 @@ export class PGListingService {
     
     await listing.save();
     return listing;
-
   }
 
-
   /* ================= ADMIN REJECT ================= */
-
   static async rejectListing(id) {
-
     const listing = await PGListing.findById(id);
     if (!listing) {
       throw new APIError("Listing not found", 404);
     }
-
     listing.status = "rejected";
     await listing.save();
     return listing;
   }
-
 }
