@@ -184,6 +184,46 @@ export const getListingById = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+/* ================= GET USER INFO ================= */
+
+export const getUserInfo = async (req, res) => {
+  const user = await User.findById(req.user.id).select("-password");
+  res.status(200).json({
+    success: true,
+    data: { user }
+  });
+};
+
+/* ================= UPDATE USER INFO ================= */
+
+export const updateUserInfo = async (req, res) => {
+  const { name, phone } = req.body;
+
+  const user = await User.findById(req.user.id);
+
+  if (name) user.name = name;
+  if (phone) user.phone = phone;
+
+  await user.save();
+
+  res.status(200).json({
+    success: true,
+    message: "User info updated successfully",
+    data: { user: { id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role } }
+  });
+};
+
+/* ================= GET ALL USERS (ADMIN) ================= */
+
+export const getAllUsers = async (req, res) => {
+  const users = await User.find().select("-password");
+  res.status(200).json({
+    success: true,
+    data: { users }
+  });
+};  
+
 /* ================= LOGOUT ================= */
 
 export const logout = async (req, res) => {

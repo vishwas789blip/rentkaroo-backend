@@ -25,6 +25,12 @@ router.post(
   asyncWrapper(authController.login)
 );
 
+router.put(
+  "/profile-update",
+  authenticate,
+  asyncWrapper(authController.updateUserInfo)
+);
+
 // Refresh Token
 router.post(
   "/refresh-token",
