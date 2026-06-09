@@ -1,18 +1,20 @@
 import express from "express";
+import { createBookingSchema } from "../joi/booking.joi.js"; 
 import { asyncWrapper } from "../middleware/asyncWrapper.js";
-import { authenticate, authorize } from "../middleware/auth.js";
+import { authenticate, authorize } from "../middleware/auth.middleware.js";
 import { bookingLimiter } from "../middleware/rateLimiter.js";
-
+import  validateBody  from "../middleware/validation.middleware.js"; 
 import * as bookingController from "../controllers/booking.controller.js";
 
 const router = express.Router();
 
-// Create Booking
+// Create Booking (Validation added)
 router.post(
   "/",
   authenticate,
   authorize("user"),
   bookingLimiter,
+  validateBody(createBookingSchema),
   asyncWrapper(bookingController.createBooking)
 );
 
@@ -63,7 +65,6 @@ router.get(
   authorize("pg_owner", "admin"),
   asyncWrapper(bookingController.getOwnerAnalytics)
 );
-
 
 // Get all bookings (admin)
 router.get(

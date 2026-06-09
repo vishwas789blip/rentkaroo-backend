@@ -1,236 +1,227 @@
 import Joi from "joi";
-import bcrypt from "bcryptjs";
 import User from "../models/User.js";
 import Listing from "../models/PGListing.js";
 import { AuthService } from "../services/auth.service.js";
+import { validate } from "../utils/validate.js";
 
-/* ================= VALIDATION SCHEMAS ================= */
-
-const registerSchema = Joi.object({
-  name: Joi.string().min(2).max(50).required(),
-
-  email: Joi.string().email().required(),
-
-  phone: Joi.string()
-    .pattern(/^\d{10}$/)
-    .required(),
-
-  password: Joi.string().min(6).required(),
-
-  role: Joi.string().valid("user", "pg_owner").required()
-});
-
-const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
-  password: Joi.string().required()
-});
-
-const refreshTokenSchema = Joi.object({
-  refreshToken: Joi.string().required()
-});
-
-const changePasswordSchema = Joi.object({
-  oldPassword: Joi.string().required(),
-  newPassword: Joi.string().min(6).required()
-});
-
-/* ================= REGISTER CONTROLLER ================= */
+/* ─────────────────────────────────────────────
+   Register  (step 1 of 2)
+   POST /auth/register
+───────────────────────────────────────────── */
 
 export const register = async (req, res) => {
+  const value = validate(registerSchema, req.body, res);
+  if (!value) return;
 
-  const { error, value } = registerSchema.validate(req.body, { abortEarly: false });
+  const result = await AuthService.register(value);
 
-  if (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.details.map(d => d.message).join(", ")
-    });
-  }
-
-  const { name, email, phone, password, role } = value;
-
-  const existingUser = await User.findOne({ email });
-
-  if (existingUser) {
-    return res.status(400).json({
-      success: false,
-      message: "Email already registered"
-    });
-  }
-
-  await User.create({
-    name,
-    email,
-    phone,
-    password,
-    role
-  });
-
-  res.status(201).json({
-    success: true,
-    message: "Registration successful. Please login."
-  });
+  res.status(201).json({ success: true, ...result });
 };
 
-/* ================= LOGIN ================= */
+/* ─────────────────────────────────────────────
+   Verify email  (step 2 of 2)
+   POST /auth/verify-email
+───────────────────────────────────────────── */
+
+export const verifyEmail = async (req, res) => {
+  const value = validate(verifyEmailSchema, req.body, res);
+  if (!value) return;
+
+  const result = await AuthService.verifyEmail(value);
+
+  res.status(200).json({ success: true, data: result });
+};
+
+/* ─────────────────────────────────────────────
+   Resend verify OTP
+   POST /auth/resend-otp
+───────────────────────────────────────────── */
+
+export const resendVerifyOtp = async (req, res) => {
+  const value = validate(emailSchema, req.body, res);
+  if (!value) return;
+
+  const result = await AuthService.resendVerifyOtp(value.email);
+
+  res.status(200).json({ success: true, ...result });
+};
+
+/* ─────────────────────────────────────────────
+   Login
+   POST /auth/login
+───────────────────────────────────────────── */
 
 export const login = async (req, res) => {
-
-  const { error, value } = loginSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.details[0].message
-    });
-  }
+  const value = validate(loginSchema, req.body, res);
+  if (!value) return;
 
   const result = await AuthService.login(value.email, value.password);
-  res.status(200).json({
-    success: true,
-    message: "Login successful",
-    data: result
-  });
+
+  res.status(200).json({ success: true, message: "Login successful", data: result });
 };
 
-/* ================= REFRESH TOKEN ================= */
+/* ─────────────────────────────────────────────
+   Forgot password  (step 1 of 3)
+   POST /auth/forgot-password
+───────────────────────────────────────────── */
+
+export const forgotPassword = async (req, res) => {
+  const value = validate(emailSchema, req.body, res);
+  if (!value) return;
+
+  const result = await AuthService.forgotPassword(value.email);
+
+  res.status(200).json({ success: true, ...result });
+};
+
+/* ─────────────────────────────────────────────
+   Verify reset OTP  (step 2 of 3)
+   POST /auth/verify-reset-otp
+───────────────────────────────────────────── */
+
+export const verifyResetOtp = async (req, res) => {
+  const value = validate(verifyResetOtpSchema, req.body, res);
+  if (!value) return;
+
+  const result = await AuthService.verifyResetOtp(value);
+
+  res.status(200).json({ success: true, data: result });
+};
+
+/* ─────────────────────────────────────────────
+   Reset password  (step 3 of 3)
+   POST /auth/reset-password
+───────────────────────────────────────────── */
+
+export const resetPassword = async (req, res) => {
+  const value = validate(resetPasswordSchema, req.body, res);
+  if (!value) return;
+
+  const result = await AuthService.resetPassword(value);
+
+  res.status(200).json({ success: true, ...result });
+};
+
+/* ─────────────────────────────────────────────
+   Refresh token
+   POST /auth/refresh
+───────────────────────────────────────────── */
 
 export const refreshToken = async (req, res) => {
-
-  const { error, value } = refreshTokenSchema.validate(req.body);
-
-  if (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.details[0].message
-    });
-  }
+  const value = validate(refreshTokenSchema, req.body, res);
+  if (!value) return;
 
   const result = await AuthService.refreshToken(value.refreshToken);
 
-  res.status(200).json({
-    success: true,
-    message: "Token refreshed successfully",
-    data: result
-  });
-
+  res.status(200).json({ success: true, message: "Token refreshed", data: result });
 };
 
-/* ================= CHANGE PASSWORD ================= */
- 
+/* ─────────────────────────────────────────────
+   Change password  (authenticated)
+   POST /auth/change-password
+───────────────────────────────────────────── */
+
 export const changePassword = async (req, res) => {
-  const { error, value } = changePasswordSchema.validate(req.body);
-  if (error) {
-    return res.status(400).json({
-      success: false,
-      message: error.details[0].message
-    });
-  }
- 
-  const user = await User.findById(req.user.id).select("+password");
-  const isMatch = await bcrypt.compare(value.oldPassword, user.password);
- 
-  if (!isMatch) {
-    return res.status(400).json({
-      success: false,
-      message: "Old password incorrect"
-    });
-  }
+  const value = validate(changePasswordSchema, req.body, res);
+  if (!value) return;
 
-  if (!user) {
-  return res.status(404).json({
-    success: false,
-    message: "User not found"
-  });
-  }
- 
-  user.password = await bcrypt.hash(value.newPassword, 10);
-  await user.save();
- 
-  res.status(200).json({
-    success: true,
-    message: "Password changed successfully"
-  });
+  await AuthService.changePassword(req.user.id, value.oldPassword, value.newPassword);
+
+  res.status(200).json({ success: true, message: "Password changed successfully" });
 };
 
-/* ================= CURRENT USER ================= */
+/* ─────────────────────────────────────────────
+   Current user  (lightweight — from middleware)
+───────────────────────────────────────────── */
+
 export const getCurrentUser = async (req, res) => {
   res.status(200).json({
     success: true,
-    data: { 
+    data: {
       user: {
-        id: req.user._id,
-        name: req.user.name,
+        id:    req.user._id,
+        name:  req.user.name,
         email: req.user.email,
-        role: req.user.role 
-      }
-    }
+        role:  req.user.role,
+      },
+    },
   });
 };
 
-export const getListingById = async (req, res) => {
-  try {
-    const listing = await Listing.findById(req.params.id)
-      .populate("owner", "name email phone role"); // Add phone and role here
-
-    if (!listing) {
-      return res.status(404).json({ success: false, message: "Listing not found" });
-    }
-
-    res.status(200).json({ 
-      success: true, 
-      data: { listing } 
-    });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-/* ================= GET USER INFO ================= */
+/* ─────────────────────────────────────────────
+   Get user info  (full record)
+───────────────────────────────────────────── */
 
 export const getUserInfo = async (req, res) => {
   const user = await User.findById(req.user.id).select("-password");
-  res.status(200).json({
-    success: true,
-    data: { user }
-  });
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found" });
+  }
+  res.status(200).json({ success: true, data: { user } });
 };
 
-/* ================= UPDATE USER INFO ================= */
+/* ─────────────────────────────────────────────
+   Update user info
+───────────────────────────────────────────── */
 
 export const updateUserInfo = async (req, res) => {
   const { name, phone } = req.body;
-
   const user = await User.findById(req.user.id);
+  if (!user) return res.status(404).json({ success: false, message: "User not found" });
 
-  if (name) user.name = name;
+  if (name)  user.name  = name;
   if (phone) user.phone = phone;
-
   await user.save();
 
   res.status(200).json({
     success: true,
-    message: "User info updated successfully",
-    data: { user: { id: user._id, name: user.name, email: user.email, phone: user.phone, role: user.role } }
+    message: "User info updated",
+    data: {
+      user: {
+        id:    user._id,
+        name:  user.name,
+        email: user.email,
+        phone: user.phone,
+        role:  user.role,
+      },
+    },
   });
 };
 
-/* ================= GET ALL USERS (ADMIN) ================= */
+/* ─────────────────────────────────────────────
+   Get listing by ID
+───────────────────────────────────────────── */
+
+export const getListingById = async (req, res) => {
+  const listing = await Listing.findById(req.params.id).populate(
+    "owner",
+    "name email phone role"
+  );
+  if (!listing) {
+    return res.status(404).json({ success: false, message: "Listing not found" });
+  }
+  res.status(200).json({ success: true, data: { listing } });
+};
+
+/* ─────────────────────────────────────────────
+   Get all users  (admin — protect with role guard)
+───────────────────────────────────────────── */
 
 export const getAllUsers = async (req, res) => {
   const users = await User.find().select("-password");
-  res.status(200).json({
-    success: true,
-    data: { users }
-  });
-};  
+  res.status(200).json({ success: true, data: { users } });
+};
 
-/* ================= LOGOUT ================= */
+/* ─────────────────────────────────────────────
+   Logout
+   POST /auth/logout
+───────────────────────────────────────────── */
 
 export const logout = async (req, res) => {
-  await AuthService.logout(req.user.id);
-  res.status(200).json({
-    success: true,
-    message: "Logged out successfully"
-  });
+  const authHeader = req.headers.authorization || "";
+  const rawToken   = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : null;
 
+  await AuthService.logout(req.user.id, rawToken);
+
+  res.status(200).json({ success: true, message: "Logged out successfully" });
 };

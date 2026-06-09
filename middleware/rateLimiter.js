@@ -32,3 +32,15 @@ export const bookingLimiter = rateLimit({
     message: 'Too many booking attempts, please try again later'
   }
 });
+
+// Review limiter (prevent spam reviews)
+export const reviewLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000, 
+  max: 10, 
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many review actions from this IP, please try again later'
+  }
+});

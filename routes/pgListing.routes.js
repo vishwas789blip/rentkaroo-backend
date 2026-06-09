@@ -1,100 +1,92 @@
 import express from "express";
-import { asyncWrapper } from "../middleware/asyncWrapper.js";
-import { authenticate, authorize, optionalAuth } from "../middleware/auth.js";
+import { authenticate, authorize, optionalAuth } from "../middleware/auth.middleware.js";
 import * as pgListingController from "../controllers/pgListing.controller.js";
 import upload from "../middleware/upload.js";
+import {
+  listingSchema,
+  updateListingSchema,
+  availabilitySchema, 
+} from "../joi/pgListing.joi.js";
+import validateBody from "../middleware/validation.middleware.js";
 
 const router = express.Router();
 
-/* ===============================
-   PUBLIC ROUTES
-=============================== */
+/* ─────────────────────────────────────────────
+   Public routes
+───────────────────────────────────────────── */
 
-// Get all listings
-router.get(
-  "/",
-  optionalAuth,
-  asyncWrapper(pgListingController.getListings)
-);
+// GET /api/v1/pg-listings
+router.get("/", optionalAuth, pgListingController.getListings);
 
-// Search listings
-router.get(
-  "/search",
-  asyncWrapper(pgListingController.searchListings)
-);
+/* ─────────────────────────────────────────────
+   Owner routes  (static segments — must be before /:id)
+───────────────────────────────────────────── */
 
-// Get single listing
-router.get(
-  "/:id",
-  asyncWrapper(pgListingController.getListing)
-);
-
-
-/* ===============================
-   OWNER ROUTES
-=============================== */
-
-// Get owner's listings
 router.get(
   "/owner/my-listings",
   authenticate,
   authorize("pg_owner", "admin"),
-  asyncWrapper(pgListingController.getOwnerListings)
+  pgListingController.getOwnerListings
 );
 
-// Create listing
+// POST /api/v1/pg-listings 
 router.post(
   "/",
   authenticate,
   authorize("pg_owner", "admin"),
-  upload.array("images", 5),
-  asyncWrapper(pgListingController.createListing)
+  upload.array("images", 5), 
+  validateBody(listingSchema), 
+  pgListingController.createListing
 );
 
-// Update listing
+/* ─────────────────────────────────────────────
+   Param routes  /:id  (always last)
+───────────────────────────────────────────── */
+
+router.get("/:id", optionalAuth, pgListingController.getListing);
+
+// PUT /api/v1/pg-listings/:id 
 router.put(
   "/:id",
   authenticate,
-  authorize("pg_owner"),
+  authorize("pg_owner", "admin"),
   upload.array("images", 5),
-  asyncWrapper(pgListingController.updateListing)
+  validateBody(updateListingSchema), 
+  pgListingController.updateListing
 );
 
-// Delete listing
 router.delete(
   "/:id",
   authenticate,
   authorize("pg_owner", "admin"),
-  asyncWrapper(pgListingController.deleteListing)
+  pgListingController.deleteListing
 );
 
-// Update room availability
+// PATCH /api/v1/pg-listings/:id/availability 
 router.patch(
   "/:id/availability",
   authenticate,
   authorize("pg_owner", "admin"),
-  asyncWrapper(pgListingController.updateAvailability)
+  validateBody(availabilitySchema), 
+  pgListingController.updateAvailability
 );
 
+/* ─────────────────────────────────────────────
+   Admin routes
+───────────────────────────────────────────── */
 
-/* ===============================
-   ADMIN ROUTES
-=============================== */
-
-// Approve listing
 router.patch(
   "/:id/approve",
   authenticate,
   authorize("admin"),
-  asyncWrapper(pgListingController.approveListing)
+  pgListingController.approveListing
 );
 
-// Reject listing
 router.patch(
   "/:id/reject",
   authenticate,
   authorize("admin"),
-  asyncWrapper(pgListingController.rejectListing)
+  pgListingController.rejectListing
 );
 
 export default router;

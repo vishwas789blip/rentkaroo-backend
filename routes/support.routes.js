@@ -1,98 +1,67 @@
 import express from "express";
-import Support from "../models/support.js";
+import { authenticate, authorize } from "../middleware/auth.middleware.js";
 import { asyncWrapper } from "../middleware/asyncWrapper.js";
-import { authenticate, authorize } from "../middleware/auth.js";
+import * as supportController from "../controllers/support.controller.js";
+import { validateBody, createTicketSchema, replySchema, statusSchema } from "../joi/support.joi.js";
 
 const router = express.Router();
 
-/* ================= PUBLIC / AUTHENTICATED USER ROUTES ================= */
+/* ─────────────────────────────────────────────
+   Authenticated User Routes
+───────────────────────────────────────────── */
 
-// 1. Create a ticket (Public or Logged in)
+// POST /api/v1/support
 router.post(
   "/",
   authenticate,
-  asyncWrapper(async (req, res) => {
-    const { name, email, subject, message } = req.body;
-
-    if (!name || !email || !message || !subject) {
-      return res.status(400).json({
-        success: false,
-        message: "Name, email, subject and message are required"
-      });
-    }
-
-    const ticket = await Support.create({
-      user: req.user?.id || null, // Link if logged in
-      name,
-      email,
-      subject,
-      message
-    });
-
-    res.status(201).json({ success: true, data: ticket });
-  })
+  validateBody(createTicketSchema),
+  asyncWrapper(supportController.createTicket)
 );
 
+// GET /api/v1/support/my-tickets
 router.get(
   "/my-tickets",
   authenticate,
-  asyncWrapper(async (req, res) => {
-    const tickets = await Support.find({ 
-      user: req.user.id, 
-      isDeleted: false 
-    }).sort({ createdAt: -1 });
-
-    res.status(200).json({
-      success: true,
-      data: tickets
-    });
-  })
+  asyncWrapper(supportController.getMyTickets)
 );
+
+// GET /api/v1/support/:id  (user apna ticket dekh sake)
+router.get(
+  "/:id",
+  authenticate,
+  asyncWrapper(supportController.getTicketById)
+);
+
+/* ─────────────────────────────────────────────
+   Admin Routes
+───────────────────────────────────────────── */
 
 router.use(authenticate, authorize("admin"));
 
-// Get All Tickets
+// GET /api/v1/support
 router.get(
   "/",
-  asyncWrapper(async (req, res) => {
-    const tickets = await Support.find({ isDeleted: false }).sort({ createdAt: -1 });
-    res.status(200).json({ success: true, data: tickets });
-  })
+  asyncWrapper(supportController.getAllTickets)
 );
 
-// Admin Reply
+// PATCH /api/v1/support/:id/reply
 router.patch(
   "/:id/reply",
-  asyncWrapper(async (req, res) => {
-    const { message } = req.body;
-    const ticket = await Support.findById(req.params.id);
-
-    if (!ticket) return res.status(404).json({ success: false, message: "Not found" });
-
-    ticket.adminReply = {
-      message,
-      repliedAt: new Date(),
-      admin: req.user.id
-    };
-    ticket.status = "resolved";
-
-    await ticket.save();
-    res.status(200).json({ success: true, message: "Reply sent", data: ticket });
-  })
+  validateBody(replySchema),
+  asyncWrapper(supportController.adminReply)
 );
 
-// Update Status
+// PATCH /api/v1/support/:id/status
 router.patch(
   "/:id/status",
-  asyncWrapper(async (req, res) => {
-    const { status } = req.body;
-    const ticket = await Support.findByIdAndUpdate(
-      req.params.id, 
-      { status }, 
-      { new: true }
-    );
-    res.status(200).json({ success: true, data: ticket });
-  })
+  validateBody(statusSchema),
+  asyncWrapper(supportController.updateStatus)
+);
+
+// DELETE /api/v1/support/:id  (soft delete)
+router.delete(
+  "/:id",
+  asyncWrapper(supportController.deleteTicket)
 );
 
 export default router;

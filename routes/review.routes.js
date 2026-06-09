@@ -1,66 +1,67 @@
 import express from "express";
-import { asyncWrapper } from "../middleware/asyncWrapper.js";
-import { authenticate, authorize } from "../middleware/auth.js";
+import { authenticate, authorize } from "../middleware/auth.middleware.js";
 import * as reviewController from "../controllers/review.controller.js";
+import  validateBody  from "../middleware/validation.middleware.js";
+import { createReviewSchema, updateReviewSchema } from "../joi/review.joi.js";
+import { reviewLimiter } from "../middleware/rateLimiter.js"; 
 
 const router = express.Router();
 
-/* ===============================
-   PUBLIC ROUTES
-=============================== */
+/* ─────────────────────────────────────────────
+   Public routes
+───────────────────────────────────────────── */
 
-// Get reviews for a listing
-router.get(
-  "/listing/:listingId",
-  asyncWrapper(reviewController.getListingReviews)
-);
+// GET /api/v1/reviews/listing/:listingId
+router.get("/listing/:listingId", reviewController.getListingReviews);
 
-// Get single review
-router.get(
-  "/:id",
-  asyncWrapper(reviewController.getReview)
-);
+/* ─────────────────────────────────────────────
+   Protected static routes  (before /:id)
+───────────────────────────────────────────── */
 
-/* ===============================
-   PROTECTED ROUTES
-=============================== */
-// Get logged-in user's reviews
+// GET /api/v1/reviews/user/my-reviews
 router.get(
   "/user/my-reviews",
   authenticate,
-  authorize("user"),
-  asyncWrapper(reviewController.getUserReviews)
+  reviewController.getUserReviews
 );
 
-// Create review
+// POST /api/v1/reviews 
 router.post(
   "/",
   authenticate,
-  authorize("user", "pg_owner", "admin"),
-  asyncWrapper(reviewController.createReview)
+  reviewLimiter, 
+  validateBody(createReviewSchema), 
+  reviewController.createReview
 );
 
-// Update review
+/* ─────────────────────────────────────────────
+   Param routes  /:id  (always last)
+───────────────────────────────────────────── */
+
+// GET /api/v1/reviews/:id
+router.get("/:id", reviewController.getReview);
+
+// PUT /api/v1/reviews/:id 
 router.put(
   "/:id",
   authenticate,
-  authorize("user"),
-  asyncWrapper(reviewController.updateReview)
+  validateBody(updateReviewSchema), 
+  reviewController.updateReview
 );
 
-// Delete review
+// DELETE /api/v1/reviews/:id
 router.delete(
   "/:id",
   authenticate,
-  authorize("user"),
-  asyncWrapper(reviewController.deleteReview)
+  reviewController.deleteReview
 );
 
-// Mark review helpful
+// PATCH /api/v1/reviews/:id/helpful 
 router.patch(
   "/:id/helpful",
   authenticate,
-  asyncWrapper(reviewController.markHelpful)
+  reviewLimiter, 
+  reviewController.markHelpful
 );
 
 export default router;

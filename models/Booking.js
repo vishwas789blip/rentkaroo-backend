@@ -6,7 +6,6 @@ const bookingSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
       required: true,
-      index: true
     },
 
     pgListing: {
@@ -143,15 +142,11 @@ bookingSchema.index({ createdAt: -1 });
 bookingSchema.pre("save", function (next) {
 
   if (!this.expiresAt && this.status === "pending") {
-
     this.expiresAt = new Date(
       Date.now() + 24 * 60 * 60 * 1000
     );
-
   }
-
   next();
-
 });
 
 
