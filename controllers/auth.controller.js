@@ -10,10 +10,8 @@ import { validate } from "../utils/validate.js";
 ───────────────────────────────────────────── */
 
 export const register = async (req, res) => {
-  const value = validate(registerSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.register(value);
+  const result = await AuthService.register(req.body);
 
   res.status(201).json({ success: true, ...result });
 };
@@ -24,10 +22,8 @@ export const register = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const verifyEmail = async (req, res) => {
-  const value = validate(verifyEmailSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.verifyEmail(value);
+  const result = await AuthService.verifyEmail(req.body);
 
   res.status(200).json({ success: true, data: result });
 };
@@ -38,10 +34,8 @@ export const verifyEmail = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const resendVerifyOtp = async (req, res) => {
-  const value = validate(emailSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.resendVerifyOtp(value.email);
+  const result = await AuthService.resendVerifyOtp(req.body.email);
 
   res.status(200).json({ success: true, ...result });
 };
@@ -52,10 +46,8 @@ export const resendVerifyOtp = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const login = async (req, res) => {
-  const value = validate(loginSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.login(value.email, value.password);
+  const result = await AuthService.login(req.body.email, req.body.password);
 
   res.status(200).json({ success: true, message: "Login successful", data: result });
 };
@@ -66,10 +58,8 @@ export const login = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const forgotPassword = async (req, res) => {
-  const value = validate(emailSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.forgotPassword(value.email);
+  const result = await AuthService.forgotPassword(req.body.email);
 
   res.status(200).json({ success: true, ...result });
 };
@@ -80,10 +70,8 @@ export const forgotPassword = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const verifyResetOtp = async (req, res) => {
-  const value = validate(verifyResetOtpSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.verifyResetOtp(value);
+  const result = await AuthService.verifyResetOtp(req.body);
 
   res.status(200).json({ success: true, data: result });
 };
@@ -94,10 +82,8 @@ export const verifyResetOtp = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const resetPassword = async (req, res) => {
-  const value = validate(resetPasswordSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.resetPassword(value);
+  const result = await AuthService.resetPassword(req.body);
 
   res.status(200).json({ success: true, ...result });
 };
@@ -108,10 +94,8 @@ export const resetPassword = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const refreshToken = async (req, res) => {
-  const value = validate(refreshTokenSchema, req.body, res);
-  if (!value) return;
 
-  const result = await AuthService.refreshToken(value.refreshToken);
+  const result = await AuthService.refreshToken(req.body.refreshToken);
 
   res.status(200).json({ success: true, message: "Token refreshed", data: result });
 };
@@ -122,10 +106,8 @@ export const refreshToken = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const changePassword = async (req, res) => {
-  const value = validate(changePasswordSchema, req.body, res);
-  if (!value) return;
-
-  await AuthService.changePassword(req.user.id, value.oldPassword, value.newPassword);
+  
+  await AuthService.changePassword(req.user.id, req.body.oldPassword, req.body.newPassword);
 
   res.status(200).json({ success: true, message: "Password changed successfully" });
 };

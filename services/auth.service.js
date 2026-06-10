@@ -4,32 +4,23 @@ import { APIError } from "../middleware/errorHandler.js";
 import { OtpService, OTP_EXPIRES_MINUTES } from "./otp.service.js";
 import { sendOtpVerifyEmail, sendOtpResetEmail } from "../utils/mailer.js";
 
-/**
- * Token store — Redis-ready wrapper.
- * Replace the in-memory Maps/Sets with Redis calls for production.
- */
 const tokenStore = {
   _refresh:   new Map(),
   _blacklist: new Set(),
 
   async setRefresh(userId, token, ttlSeconds) {
-    // redis: await redis.set(`refresh:${userId}`, token, "EX", ttlSeconds);
     this._refresh.set(String(userId), token);
   },
   async getRefresh(userId) {
-    // redis: return redis.get(`refresh:${userId}`);
     return this._refresh.get(String(userId)) ?? null;
   },
   async deleteRefresh(userId) {
-    // redis: await redis.del(`refresh:${userId}`);
     this._refresh.delete(String(userId));
   },
   async blacklistJti(jti, ttlSeconds) {
-    // redis: await redis.set(`bl:${jti}`, "1", "EX", ttlSeconds);
     this._blacklist.add(jti);
   },
   async isBlacklisted(jti) {
-    // redis: return (await redis.exists(`bl:${jti}`)) === 1;
     return this._blacklist.has(jti);
   },
 };
@@ -74,17 +65,7 @@ export class AuthService {
 
   /* ═══════════════════════════════════════════
      REGISTRATION FLOW  (two-step, OTP-gated)
-     ───────────────────────────────────────────
-     Step 1 — POST /auth/register
-       • Validate & check duplicate email
-       • Generate OTP → send verify email
-       • Create user with isVerified: false
-
-     Step 2 — POST /auth/verify-email
-       • Verify OTP
-       • Set isVerified: true
-       • Return tokens (user is now logged in)
-     ═══════════════════════════════════════════ */
+     ───────────────────────────────────────────*/
 
   static async register({ name, email, phone, password, role }) {
     const existing = await User.findOne({ email });
@@ -107,6 +88,7 @@ export class AuthService {
       user.name  = name;
       user.phone = phone;
       user.role  = role || user.role;
+      user.password = password; 
       await user.save();
     }
 
@@ -226,19 +208,7 @@ export class AuthService {
 
   /* ═══════════════════════════════════════════
      FORGOT / RESET PASSWORD  (OTP-gated)
-     ───────────────────────────────────────────
-     Step 1 — POST /auth/forgot-password
-       • Look up user by email
-       • Generate OTP → send reset email
-       • Always respond 200 (prevent user enumeration)
-
-     Step 2 — POST /auth/verify-reset-otp
-       • Verify OTP → return short-lived reset token
-
-     Step 3 — POST /auth/reset-password
-       • Accept reset token + new password
-       • Set password, invalidate all sessions
-     ═══════════════════════════════════════════ */
+     ─────────────────────────────────────────── */
 
   static async forgotPassword(email) {
     const user = await User.findOne({ email, isVerified: true });
@@ -260,9 +230,7 @@ export class AuthService {
   }
 
   /**
-   * Verify reset OTP → return a short-lived reset token.
-   * The frontend includes this token with the new password in step 3,
-   * preventing a skip straight to password reset without a valid OTP.
+   * Verify the reset OTP and return a short-lived reset token.
    */
   static async verifyResetOtp({ email, otp }) {
     await OtpService.verify("reset", email, otp);

@@ -16,6 +16,8 @@ const userSchema = new mongoose.Schema(
       unique:    true,
       lowercase: true,
       trim:      true,
+      match:     [/^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/, "Please provide a valid email address with @ and extension"],
+  
     },
 
     phone: {
@@ -28,7 +30,7 @@ const userSchema = new mongoose.Schema(
       type:      String,
       required:  true,
       minlength: 6,
-      select:    false,   // never returned in queries by default
+      select:    false,   
     },
 
     role: {

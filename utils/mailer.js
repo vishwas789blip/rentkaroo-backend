@@ -1,24 +1,40 @@
 import nodemailer from "nodemailer";
 
-function createTransporter() {
+/**
+ * Singleton Transporter Instance
+ */
+let transporter = null;
+
+function getTransporter() {
+  if (transporter) return transporter;
+
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
     throw new Error("Email credentials missing in .env");
   }
 
-  return nodemailer.createTransport({
+  transporter = nodemailer.createTransport({
     service: "gmail",
+    pool: true, 
+    maxConnections: 5, 
+    maxMessages: 100, 
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
   });
+
+  return transporter;
 }
 
-// ✅ FIXED
+// Global server startup ke waqt check karne ke liye (server.js mein call kar sakte ho)
 export async function verifyMailer() {
-  const transporter = createTransporter();
-  await transporter.verify();
-  console.log("✉️ Mailer ready");
+  try {
+    const mailer = getTransporter();
+    await mailer.verify();
+    console.log("✉️ Mailer ready and pool configured");
+  } catch (error) {
+    console.error("❌ Mailer configuration failed:", error.message);
+  }
 }
 
 /* ─────────────────────────────────────────────
@@ -40,27 +56,24 @@ function baseTemplate(title, bodyHtml) {
       <table width="480" cellpadding="0" cellspacing="0"
              style="background:#ffffff;border-radius:12px;
                     box-shadow:0 2px 8px rgba(0,0,0,.08);overflow:hidden;">
-        <!-- Header -->
         <tr>
           <td style="background:#4F46E5;padding:28px 40px;">
             <p style="margin:0;color:#fff;font-size:20px;font-weight:700;
                       letter-spacing:.5px;">
-              ${process.env.APP_NAME || "MyApp"}
+              ${process.env.APP_NAME || "RentKaroo"}
             </p>
           </td>
         </tr>
-        <!-- Body -->
         <tr>
           <td style="padding:36px 40px 28px;">
             ${bodyHtml}
           </td>
         </tr>
-        <!-- Footer -->
         <tr>
           <td style="padding:16px 40px 28px;border-top:1px solid #f0f0f0;">
             <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
               If you did not request this, you can safely ignore this email.<br/>
-              © ${new Date().getFullYear()} ${process.env.APP_NAME || "MyApp"}.
+              © ${new Date().getFullYear()} ${process.env.APP_NAME || "RentKaroo"}.
               All rights reserved.
             </p>
           </td>
@@ -87,8 +100,11 @@ export function otpVerifyTemplate({ name, otp, expiresInMinutes = 10 }) {
         ${otp}
       </span>
     </div>
-    <p style="margin:0;font-size:13px;color:#9ca3af;">
+    <p style="margin:0 0 10px;font-size:13px;color:#9ca3af;">
       Never share this code with anyone.
+    </p>
+    <p style="margin:20px 0 0 0;font-size:13px;color:#DC2626;font-weight:600;background:#FEE2E2;padding:8px 12px;border-radius:6px;display:inline-block;">
+      ⚠️ Note: This email and verification code are only valid for the next ${expiresInMinutes} minutes.
     </p>`;
   return baseTemplate("Verify your email", body);
 }
@@ -108,36 +124,37 @@ export function otpResetTemplate({ name, otp, expiresInMinutes = 10 }) {
         ${otp}
       </span>
     </div>
-    <p style="margin:0;font-size:13px;color:#9ca3af;">
+    <p style="margin:0 0 10px;font-size:13px;color:#9ca3af;">
       If you didn't request a password reset, please secure your account immediately.
+    </p>
+    <p style="margin:20px 0 0 0;font-size:13px;color:#DC2626;font-weight:600;background:#FEE2E2;padding:8px 12px;border-radius:6px;display:inline-block;">
+      ⚠️ Note: This email and reset code are only valid for the next ${expiresInMinutes} minutes.
     </p>`;
   return baseTemplate("Reset your password", body);
 }
 
 /* ─────────────────────────────────────────────
-   Send helpers
+   Send helpers (Using the shared Connection Pool)
 ───────────────────────────────────────────── */
 
-const FROM = () => process.env.EMAIL_FROM || `"MyApp" <no-reply@myapp.com>`;
-
 export async function sendOtpVerifyEmail({ to, name, otp, expiresInMinutes }) {
-  const transporter = createTransporter(); // 🔥 ADD THIS
+  const mailer = getTransporter(); // Singleton instance re-used smoothly
 
-  await transporter.sendMail({
-    from:    `"RentKaroo" <${process.env.EMAIL_USER}>`,
+  await mailer.sendMail({
+    from: `"RentKaroo" <${process.env.EMAIL_USER}>`,
     to,
     subject: `${otp} is your verification code`,
-    html:    otpVerifyTemplate({ name, otp, expiresInMinutes }),
+    html: otpVerifyTemplate({ name, otp, expiresInMinutes }),
   });
 }
 
 export async function sendOtpResetEmail({ to, name, otp, expiresInMinutes }) {
-  const transporter = createTransporter(); // 🔥 ADD THIS
+  const mailer = getTransporter(); 
 
-  await transporter.sendMail({
-    from:  `"RentKaroo" <${process.env.EMAIL_USER}>`,
+  await mailer.sendMail({
+    from: `"RentKaroo" <${process.env.EMAIL_USER}>`,
     to,
     subject: `${otp} is your password reset code`,
-    html:    otpResetTemplate({ name, otp, expiresInMinutes }),
+    html: otpResetTemplate({ name, otp, expiresInMinutes }),
   });
 }

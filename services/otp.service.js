@@ -40,6 +40,7 @@ const otpStore = {
     const entry = this._store.get(key);
     if (entry) {
       entry[field] = (entry[field] || 0) + 1;
+      this._store.set(key, entry);
     }
   },
 };

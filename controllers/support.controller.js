@@ -9,7 +9,6 @@ import { APIError } from "../middleware/errorHandler.js";
 export const createTicket = async (req, res) => {
   const { name, email, subject, message } = req.body;
 
-  // Logged-in user ki info override karegi body ki info
   const ticketData = {
     user:    req.user?.id   || null,
     name:    req.user?.name  || name,
@@ -110,41 +109,5 @@ export const adminReply = async (req, res) => {
     success: true,
     message: "Reply sent successfully",
     data:    { ticket },
-  });
-};
-
-/* ─────────────────────────────────────────────
-   Update Status
-   PATCH /api/v1/support/:id/status
-───────────────────────────────────────────── */
-
-export const updateStatus = async (req, res) => {
-  const ticket = await supportService.updateTicketStatus(
-    req.params.id,
-    req.body.status
-  );
-
-  if (!ticket) throw new APIError("Ticket not found", 404);
-
-  res.status(200).json({
-    success: true,
-    message: "Status updated successfully",
-    data:    { ticket },
-  });
-};
-
-/* ─────────────────────────────────────────────
-   Soft Delete Ticket  (admin)
-   DELETE /api/v1/support/:id
-───────────────────────────────────────────── */
-
-export const deleteTicket = async (req, res) => {
-  const ticket = await supportService.softDeleteTicket(req.params.id);
-
-  if (!ticket) throw new APIError("Ticket not found", 404);
-
-  res.status(200).json({
-    success: true,
-    message: "Ticket deleted successfully",
   });
 };

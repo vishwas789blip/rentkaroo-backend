@@ -1,4 +1,3 @@
-import Joi from "joi";
 import { PGListingService } from "../services/pgListing.service.js";
 import { APIError } from "../middleware/errorHandler.js";
 
@@ -6,17 +5,21 @@ import { APIError } from "../middleware/errorHandler.js";
    Create listing
    POST /api/v1/pg-listings
 ───────────────────────────────────────────── */
-
 export const createListing = async (req, res) => {
-  const parsed = parseListingBody(req.body);
-  const value  = validateBody(listingSchema, parsed);
+  const value = req.body;
 
+  // Multer handles image arrays
   const images = req.files?.map((file) => ({
     url:      file.path,
     publicId: file.filename,
   })) ?? [];
 
-  if (images.length === 0) {
+  if (images.length === 0 && process.env.NODE_ENV === "development") {
+    images.push({
+      url: "https://res.cloudinary.com/demo/image/upload/sample.jpg",
+      publicId: "sample_id"
+    });
+  } else if (images.length === 0) {
     throw new APIError("At least one image is required", 400);
   }
 
@@ -36,12 +39,10 @@ export const createListing = async (req, res) => {
    Update listing
    PUT /api/v1/pg-listings/:id
 ───────────────────────────────────────────── */
-
 export const updateListing = async (req, res) => {
-  const parsed = parseListingBody(req.body);
-  const value  = validateBody(updateListingSchema, parsed);
+  // 🔥 FIXED: Validation router middleware par shift ho gayi hai
+  const value = req.body;
 
-  // Attach any newly uploaded images (optional on update)
   const newImages = req.files?.map((file) => ({
     url:      file.path,
     publicId: file.filename,
@@ -62,9 +63,8 @@ export const updateListing = async (req, res) => {
 
 /* ─────────────────────────────────────────────
    Get all listings (with filters + pagination)
-   GET /api/v1/pg-listings?search=&city=&minPrice=&maxPrice=&amenities=&sort=&page=&limit=
+   GET /api/v1/pg-listings
 ───────────────────────────────────────────── */
-
 export const getListings = async (req, res) => {
   const { search, city, location, minPrice, maxPrice, amenities, roomType, sort, page, limit } =
     req.query;
@@ -97,7 +97,6 @@ export const getListings = async (req, res) => {
    Get single listing
    GET /api/v1/pg-listings/:id
 ───────────────────────────────────────────── */
-
 export const getListing = async (req, res) => {
   const listing = await PGListingService.getListingById(req.params.id);
 
@@ -112,7 +111,6 @@ export const getListing = async (req, res) => {
    Get owner's own listings
    GET /api/v1/pg-listings/owner/my-listings
 ───────────────────────────────────────────── */
-
 export const getOwnerListings = async (req, res) => {
   const listings = await PGListingService.getOwnerListings(req.user.id);
 
@@ -127,7 +125,6 @@ export const getOwnerListings = async (req, res) => {
    Delete listing
    DELETE /api/v1/pg-listings/:id
 ───────────────────────────────────────────── */
-
 export const deleteListing = async (req, res) => {
   await PGListingService.deleteListing(req.params.id, req.user.id, req.user.role);
 
@@ -141,50 +138,17 @@ export const deleteListing = async (req, res) => {
    Update room availability
    PATCH /api/v1/pg-listings/:id/availability
 ───────────────────────────────────────────── */
-
 export const updateAvailability = async (req, res) => {
-  const { error, value } = availabilitySchema.validate(req.body);
-  if (error) throw new APIError(error.details[0].message, 400);
-
+  // 🔥 FIXED: Local validate block removed, uses pre-validated req.body smoothly
   const listing = await PGListingService.updateAvailability(
     req.params.id,
     req.user.id,
-    value.availableRooms
+    req.body.availableRooms
   );
 
   res.status(200).json({
     success: true,
     message: "Availability updated successfully",
-    data:    { listing },
-  });
-};
-
-/* ─────────────────────────────────────────────
-   Admin — approve listing
-   PATCH /api/v1/pg-listings/:id/approve
-───────────────────────────────────────────── */
-
-export const approveListing = async (req, res) => {
-  const listing = await PGListingService.approveListing(req.params.id);
-
-  res.status(200).json({
-    success: true,
-    message: "Listing approved successfully",
-    data:    { listing },
-  });
-};
-
-/* ─────────────────────────────────────────────
-   Admin — reject listing
-   PATCH /api/v1/pg-listings/:id/reject
-───────────────────────────────────────────── */
-
-export const rejectListing = async (req, res) => {
-  const listing = await PGListingService.rejectListing(req.params.id);
-
-  res.status(200).json({
-    success: true,
-    message: "Listing rejected successfully",
     data:    { listing },
   });
 };

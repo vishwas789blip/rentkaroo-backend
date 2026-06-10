@@ -3,40 +3,36 @@ import { APIError } from "../middleware/errorHandler.js";
 
 export class PGListingService {
 
-  /* ─────────────────────────────────────────────
-     Create listing
-  ───────────────────────────────────────────── */
+  /* ── Create ──────────────────────────────────────────────── */
 
   static async createListing(data, ownerId) {
+    // FIX: status not set — listing is live immediately
     const listing = await PGListing.create({ ...data, owner: ownerId });
     return listing;
   }
 
-  /* ─────────────────────────────────────────────
-     Get listings  (filters + pagination)
-  ───────────────────────────────────────────── */
+  /* ── Get all listings (filters + pagination) ─────────────── */
 
   static async getListings(query = {}) {
+    // FIX: status: "approved" removed — only isDeleted filter remains
     const filter = { isDeleted: { $ne: true } };
 
     /* Search — title, city, state */
     if (query.search?.trim()) {
       filter.$or = [
-        { title:          { $regex: query.search, $options: "i" } },
+        { title:           { $regex: query.search, $options: "i" } },
         { "address.city":  { $regex: query.search, $options: "i" } },
         { "address.state": { $regex: query.search, $options: "i" } },
       ];
     }
 
-    /* Location filter (city OR state) */
+    /* Location filter */
     const location = query.location || query.city;
     if (location && location !== "All" && location.trim()) {
       const locConditions = [
         { "address.city":  { $regex: location, $options: "i" } },
         { "address.state": { $regex: location, $options: "i" } },
       ];
-
-      // Merge with existing $or using $and to avoid overwriting search filter
       if (filter.$or) {
         filter.$and = [{ $or: filter.$or }, { $or: locConditions }];
         delete filter.$or;
@@ -57,7 +53,7 @@ export class PGListingService {
       if (query.maxPrice) filter.pricePerMonth.$lte = Number(query.maxPrice);
     }
 
-    /* Amenities — $all means listing must have every requested amenity */
+    /* Amenities */
     if (query.amenities?.length > 0) {
       const amenitiesArray = Array.isArray(query.amenities)
         ? query.amenities
@@ -68,7 +64,7 @@ export class PGListingService {
       }
     }
 
-    /* Sorting */
+    /* Sort */
     const sortMap = {
       priceLow:  { pricePerMonth: 1 },
       priceHigh: { pricePerMonth: -1 },
@@ -79,10 +75,9 @@ export class PGListingService {
 
     /* Pagination */
     const page  = Math.max(1, Number(query.page)  || 1);
-    const limit = Math.min(50, Math.max(1, Number(query.limit) || 10)); // cap at 50
+    const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
     const skip  = (page - 1) * limit;
 
-    /* Execute — run count and fetch in parallel for performance */
     const [listings, total] = await Promise.all([
       PGListing.find(filter)
         .populate("owner", "name email phone")
@@ -95,18 +90,11 @@ export class PGListingService {
 
     return {
       listings,
-      pagination: {
-        total,
-        page,
-        pages: Math.ceil(total / limit),
-        limit,
-      },
+      pagination: { total, page, pages: Math.ceil(total / limit), limit },
     };
   }
 
-  /* ─────────────────────────────────────────────
-     Get single listing
-  ───────────────────────────────────────────── */
+  /* ── Get single listing ──────────────────────────────────── */
 
   static async getListingById(id) {
     const listing = await PGListing.findById(id)
@@ -118,9 +106,7 @@ export class PGListingService {
     return listing;
   }
 
-  /* ─────────────────────────────────────────────
-     Owner's listings
-  ───────────────────────────────────────────── */
+  /* ── Owner listings ──────────────────────────────────────── */
 
   static async getOwnerListings(ownerId) {
     return PGListing.find({ owner: ownerId, isDeleted: { $ne: true } })
@@ -129,11 +115,7 @@ export class PGListingService {
       .lean();
   }
 
-  /* ─────────────────────────────────────────────
-     Update listing
-     Uses Object.assign so adding new model fields
-     doesn't require editing this method.
-  ───────────────────────────────────────────── */
+  /* ── Update listing ──────────────────────────────────────── */
 
   static async updateListing(listingId, data, userId) {
     const listing = await PGListing.findById(listingId);
@@ -141,39 +123,45 @@ export class PGListingService {
     if (listing.isDeleted)                   throw new APIError("Listing not found", 404);
     if (listing.owner.toString() !== userId) throw new APIError("You can only edit your own listing", 403);
 
-    // Merge new images with existing ones instead of replacing
     if (data.images?.length > 0) {
       listing.images = [...listing.images, ...data.images];
       delete data.images;
     }
 
-    // Assign all other fields dynamically — no per-field maintenance needed
-    Object.assign(listing, data);
+    if (data.address) {
+      listing.address = { ...listing.address.toObject(), ...data.address };
+    }
+
+    if (data.rooms) {
+      listing.rooms = { ...listing.rooms.toObject(), ...data.rooms };
+    }
+
+    // Remaining scalar fields
+    const SCALAR_FIELDS = ["title", "description", "pricePerMonth", "amenities"];
+    SCALAR_FIELDS.forEach((field) => {
+      if (data[field] !== undefined) listing[field] = data[field];
+    });
 
     await listing.save();
     return listing;
   }
 
-  /* ─────────────────────────────────────────────
-     Delete listing  (soft delete)
-  ───────────────────────────────────────────── */
-
-  static async deleteListing(id, ownerId, role) {
+  /* ── Delete listing (soft delete) ───────────────────────── */
+  // FIX: admin can delete any listing — owner can only delete their own
+  static async deleteListing(id, userId, role) {
     const listing = await PGListing.findById(id);
     if (!listing || listing.isDeleted) throw new APIError("Listing not found", 404);
 
-    if (listing.owner.toString() !== ownerId && role !== "admin") {
-      throw new APIError("Unauthorized", 403);
+    if (role !== "admin" && listing.owner.toString() !== userId) {
+      throw new APIError("Unauthorized — you can only delete your own listing", 403);
     }
 
-    listing.isDeleted   = true;
-    listing.deletedAt   = new Date();
+    listing.isDeleted = true;
+    listing.deletedAt = new Date();
     await listing.save();
   }
 
-  /* ─────────────────────────────────────────────
-     Update availability
-  ───────────────────────────────────────────── */
+  /* ── Update availability ─────────────────────────────────── */
 
   static async updateAvailability(id, ownerId, availableRooms) {
     const listing = await PGListing.findById(id);
@@ -181,33 +169,6 @@ export class PGListingService {
     if (listing.owner.toString() !== ownerId) throw new APIError("Unauthorized", 403);
 
     listing.rooms.availableRooms = availableRooms;
-    await listing.save();
-    return listing;
-  }
-
-  /* ─────────────────────────────────────────────
-     Admin — approve
-  ───────────────────────────────────────────── */
-
-  static async approveListing(id) {
-    const listing = await PGListing.findById(id);
-    if (!listing || listing.isDeleted) throw new APIError("Listing not found", 404);
-
-    listing.status     = "approved";
-    listing.isVerified = true;
-    await listing.save();
-    return listing;
-  }
-
-  /* ─────────────────────────────────────────────
-     Admin — reject
-  ───────────────────────────────────────────── */
-
-  static async rejectListing(id) {
-    const listing = await PGListing.findById(id);
-    if (!listing || listing.isDeleted) throw new APIError("Listing not found", 404);
-
-    listing.status = "rejected";
     await listing.save();
     return listing;
   }

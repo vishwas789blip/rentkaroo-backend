@@ -9,12 +9,13 @@ const listingSchema = Joi.object({
     street:  Joi.string().required(),
     city:    Joi.string().required(),
     state:   Joi.string().required(),
-    pincode: Joi.string().pattern(/^[0-9]{6}$/).required(),
+    pincode: Joi.string().pattern(/^[0-9]{6}$/).required()
+      .messages({ "string.pattern.base": "Pincode must be exactly 6 digits" }),
   }).required(),
 
   rooms: Joi.object({
     availableRooms: Joi.number().min(1).required(),
-    roomType:       Joi.string()
+    roomType: Joi.string()
       .valid("single", "double", "triple", "quad")
       .required(),
   }).required(),
@@ -25,58 +26,63 @@ const listingSchema = Joi.object({
     .default([]),
 });
 
-// Partial schema for updates — every field optional but validated if present
+// ── Update schema — all fields optional ──────────────────────
 const updateListingSchema = listingSchema.fork(
   ["title", "description", "pricePerMonth", "address", "rooms"],
   (field) => field.optional()
 );
 
+// ── Availability schema ───────────────────────────────────────
 const availabilitySchema = Joi.object({
   availableRooms: Joi.number().min(0).required(),
 });
 
-/* ─────────────────────────────────────────────
-   Shared body-mapping helper
-   Flattens the frontend's flat field names into
-   the nested structure Joi expects. Called once
-   for both create and update.
-───────────────────────────────────────────── */
-
 function parseListingBody(body) {
-  return {
-    ...(body.title         !== undefined && { title: body.title }),
-    ...(body.description   !== undefined && { description: body.description }),
-    ...(body.pricePerMonth !== undefined && { pricePerMonth: Number(body.pricePerMonth) }),
+  if (body.address && typeof body.address === "object" && body.rooms) {
+    return body;
+  }
 
-    // Only include address if at least one field is present
-    ...((body.street || body.city || body.state || body.pincode) && {
-      address: {
-        street:  body.street,
-        city:    body.city,
-        state:   body.state,
-        pincode: body.pincode,
-      },
-    }),
+  const parsed = {};
 
-    // Only include rooms if at least one field is present
-    ...((body.availableRooms !== undefined || body.roomType) && {
-      rooms: {
-        availableRooms: Number(body.availableRooms),
-        roomType:       body.roomType,
-      },
-    }),
+  // Scalar fields
+  if (body.title         !== undefined) parsed.title         = body.title;
+  if (body.description   !== undefined) parsed.description   = body.description;
+  if (body.pricePerMonth !== undefined) parsed.pricePerMonth = Number(body.pricePerMonth);
 
-    amenities: Array.isArray(body.amenities)
+  // Nested: address
+  if (body.street || body.city || body.state || body.pincode) {
+    parsed.address = {
+      street:  body.street  || "",
+      city:    body.city    || "",
+      state:   body.state   || "",
+      pincode: body.pincode || "",
+    };
+  }
+
+  // Nested: rooms
+  if (body.availableRooms !== undefined || body.roomType !== undefined) {
+    parsed.rooms = {};
+    if (body.availableRooms !== undefined) parsed.rooms.availableRooms = Number(body.availableRooms);
+    if (body.roomType       !== undefined) parsed.rooms.roomType       = body.roomType;
+  }
+
+  // Amenities — FormData sends multiple appends as array, or comma-separated string
+  if (body.amenities !== undefined) {
+    parsed.amenities = Array.isArray(body.amenities)
       ? body.amenities
-      : body.amenities
-      ? [body.amenities]
-      : [],
-  };
+      : typeof body.amenities === "string" && body.amenities.includes(",")
+        ? body.amenities.split(",").map((a) => a.trim())
+        : [body.amenities];
+  } else {
+    parsed.amenities = []; // default empty array
+  }
+
+  return parsed;
 }
 
 export {
   listingSchema,
   updateListingSchema,
   availabilitySchema,
-  parseListingBody
+  parseListingBody,
 };

@@ -25,7 +25,7 @@ router.get(
   asyncWrapper(supportController.getMyTickets)
 );
 
-// GET /api/v1/support/:id  (user apna ticket dekh sake)
+// GET /api/v1/support/:id  
 router.get(
   "/:id",
   authenticate,
@@ -56,12 +56,6 @@ router.patch(
   "/:id/status",
   validateBody(statusSchema),
   asyncWrapper(supportController.updateStatus)
-);
-
-// DELETE /api/v1/support/:id  (soft delete)
-router.delete(
-  "/:id",
-  asyncWrapper(supportController.deleteTicket)
 );
 
 export default router;

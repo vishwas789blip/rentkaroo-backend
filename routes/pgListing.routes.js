@@ -6,6 +6,7 @@ import {
   listingSchema,
   updateListingSchema,
   availabilitySchema, 
+  parseListingBody
 } from "../joi/pgListing.joi.js";
 import validateBody from "../middleware/validation.middleware.js";
 
@@ -34,8 +35,12 @@ router.post(
   "/",
   authenticate,
   authorize("pg_owner", "admin"),
-  upload.array("images", 5), 
-  validateBody(listingSchema), 
+  upload.array("images", 5),
+  (req, res, next) => {
+    req.body = parseListingBody(req.body); // flatten → nested
+    next();
+  },
+  validateBody(listingSchema),
   pgListingController.createListing
 );
 
@@ -51,7 +56,11 @@ router.put(
   authenticate,
   authorize("pg_owner", "admin"),
   upload.array("images", 5),
-  validateBody(updateListingSchema), 
+  (req, res, next) => {
+    req.body = parseListingBody(req.body);
+    next();
+  },
+  validateBody(updateListingSchema),
   pgListingController.updateListing
 );
 
@@ -69,24 +78,6 @@ router.patch(
   authorize("pg_owner", "admin"),
   validateBody(availabilitySchema), 
   pgListingController.updateAvailability
-);
-
-/* ─────────────────────────────────────────────
-   Admin routes
-───────────────────────────────────────────── */
-
-router.patch(
-  "/:id/approve",
-  authenticate,
-  authorize("admin"),
-  pgListingController.approveListing
-);
-
-router.patch(
-  "/:id/reject",
-  authenticate,
-  authorize("admin"),
-  pgListingController.rejectListing
 );
 
 export default router;
