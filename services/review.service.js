@@ -44,9 +44,6 @@ export class ReviewService {
 
   /* ─────────────────────────────────────────────
      Create review
-     One review per user per listing enforced here
-     and should also have a unique index on the model:
-       { user: 1, pgListing: 1, isDeleted: 1 }
   ───────────────────────────────────────────── */
 
   static async createReview(data, userId) {
@@ -63,7 +60,6 @@ export class ReviewService {
     const exists = await Review.findOne({
       user:      userId,
       pgListing: data.listingId,
-      isDeleted: false,
     });
     if (exists) {
       throw new APIError("You have already reviewed this listing", 400);
@@ -82,27 +78,7 @@ export class ReviewService {
   }
 
   /* ─────────────────────────────────────────────
-     Update review
-  ───────────────────────────────────────────── */
-
-  static async updateReview(reviewId, data, userId) {
-    const review = await Review.findById(reviewId);
-    if (!review || review.isDeleted) throw new APIError("Review not found", 404);
-
-    if (review.user.toString() !== userId) {
-      throw new APIError("You can only edit your own review", 403);
-    }
-
-    Object.assign(review, data);
-    await review.save();
-    await this.updateListingRating(review.pgListing);
-    return review;
-  }
-
-  /* ─────────────────────────────────────────────
      Delete review
-     Owners can delete their own reviews.
-     Admins can delete any review (e.g. abusive content).
   ───────────────────────────────────────────── */
 
   static async deleteReview(reviewId, userId, role) {
@@ -122,18 +98,7 @@ export class ReviewService {
     await this.updateListingRating(review.pgListing);
   }
 
-  /* ─────────────────────────────────────────────
-     Toggle helpful vote
-     FIX: indexOf() on ObjectIds always returns -1
-     because ObjectId !== ObjectId by reference.
-     Use .toString() comparison on each element instead.
-
-     FIX: helpfulCount was stored as a separate number
-     that could drift from helpfulBy.length if an error
-     occurred mid-save. Now it's always derived from
-     the array length — single source of truth.
-  ───────────────────────────────────────────── */
-
+  /// Toggle helpful vote
   static async markHelpful(reviewId, userId) {
     const review = await Review.findById(reviewId);
     if (!review || review.isDeleted) throw new APIError("Review not found", 404);

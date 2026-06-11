@@ -1,5 +1,6 @@
 import { BookingService } from "../services/booking.service.js";
 import { validate } from "../utils/validate.js";
+import { createBookingSchema } from "../joi/booking.joi.js";
 
 /* ===============================
    Create Booking

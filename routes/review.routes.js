@@ -2,7 +2,7 @@ import express from "express";
 import { authenticate, authorize } from "../middleware/auth.middleware.js";
 import * as reviewController from "../controllers/review.controller.js";
 import  validateBody  from "../middleware/validation.middleware.js";
-import { createReviewSchema, updateReviewSchema } from "../joi/review.joi.js";
+import { createReviewSchema } from "../joi/review.joi.js";
 import { reviewLimiter } from "../middleware/rateLimiter.js"; 
 
 const router = express.Router();
@@ -40,14 +40,6 @@ router.post(
 
 // GET /api/v1/reviews/:id
 router.get("/:id", reviewController.getReview);
-
-// PUT /api/v1/reviews/:id 
-router.put(
-  "/:id",
-  authenticate,
-  validateBody(updateReviewSchema), 
-  reviewController.updateReview
-);
 
 // DELETE /api/v1/reviews/:id
 router.delete(

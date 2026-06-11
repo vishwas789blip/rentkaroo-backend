@@ -26,12 +26,20 @@ export const errorHandler = (err, req, res, next) => {
     });
   }
 
-  // Duplicate Key Error
-  if (err.code === 11000) {
-    statusCode = 400;
+// Duplicate Key Error
+if (err.code === 11000) {
+  statusCode = 400;
+
+  if (
+    err.keyPattern?.user &&
+    err.keyPattern?.pgListing
+  ) {
+    message = "You have already reviewed this listing";
+  } else {
     const field = Object.keys(err.keyValue)[0];
     message = `${field} already exists`;
   }
+}
 
   // JWT Errors
   if (err.name === 'JsonWebTokenError') {

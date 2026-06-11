@@ -6,12 +6,6 @@ const createReviewSchema = Joi.object({
   comment:   Joi.string().min(10).max(1000).required(),
 });
 
-const updateReviewSchema = Joi.object({
-  rating:  Joi.number().min(1).max(5).required(),
-  comment: Joi.string().min(10).max(1000).required(),
-});
-
 export {
   createReviewSchema,
-  updateReviewSchema,
 };
