@@ -1,49 +1,31 @@
 import crypto from "crypto";
+import redis from "../config/redis.js";
 
-/**
- * OTP store — same Redis-ready wrapper pattern as the token store.
- * Keys:
- *   otp:<purpose>:<email>  →  { hash, attempts, createdAt }
- *
- * Replace the in-memory Map with Redis calls for production
- * multi-process deployments (comments show the exact commands).
- */
 const otpStore = {
-  /** @type {Map<string, object>} */
-  _store: new Map(),
-
   async set(key, value, ttlSeconds) {
-    // Replace with: await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
-    this._store.set(key, { ...value, _expiresAt: Date.now() + ttlSeconds * 1000 });
+    await redis.set(key, JSON.stringify(value), "EX", ttlSeconds);
   },
 
   async get(key) {
-    // Replace with:
-    //   const raw = await redis.get(key);
-    //   return raw ? JSON.parse(raw) : null;
-    const entry = this._store.get(key);
-    if (!entry) return null;
-    if (Date.now() > entry._expiresAt) {
-      this._store.delete(key);
-      return null;
-    }
-    return entry;
+    const raw = await redis.get(key);
+    return raw ? JSON.parse(raw) : null;
   },
 
   async delete(key) {
-    // Replace with: await redis.del(key);
-    this._store.delete(key);
+    await redis.del(key);
   },
 
   async increment(key, field) {
-    // Replace with: await redis.hincrby(key, field, 1);
-    const entry = this._store.get(key);
-    if (entry) {
-      entry[field] = (entry[field] || 0) + 1;
-      this._store.set(key, entry);
-    }
+    const raw = await redis.get(key);
+    if (!raw) return;
+    const entry = JSON.parse(raw);
+    entry[field] = (entry[field] || 0) + 1;
+    // TTL preserve karne ke liye remaining TTL nikaalo aur reset karo
+    const ttl = await redis.ttl(key);
+    await redis.set(key, JSON.stringify(entry), "EX", ttl > 0 ? ttl : OTP_TTL_SECONDS);
   },
 };
+
 
 /* ─────────────────────────────────────────────
    Config

@@ -3,26 +3,26 @@ import User from "../models/User.js";
 import { APIError } from "../middleware/errorHandler.js";
 import { OtpService, OTP_EXPIRES_MINUTES } from "./otp.service.js";
 import { sendOtpVerifyEmail, sendOtpResetEmail } from "../utils/mailer.js";
+import redis from "../config/redis.js";
+import { blacklistKey } from "../utils/redisKeys.js";
+
 
 const tokenStore = {
-  _refresh:   new Map(),
-  _blacklist: new Set(),
-
   async setRefresh(userId, token, ttlSeconds) {
-    this._refresh.set(String(userId), token);
+    await redis.set(`refresh:${userId}`, token, "EX", ttlSeconds);
   },
   async getRefresh(userId) {
-    return this._refresh.get(String(userId)) ?? null;
+    return await redis.get(`refresh:${userId}`);
   },
   async deleteRefresh(userId) {
-    this._refresh.delete(String(userId));
+    await redis.del(`refresh:${userId}`);
   },
   async blacklistJti(jti, ttlSeconds) {
-    this._blacklist.add(jti);
-  },
-  async isBlacklisted(jti) {
-    return this._blacklist.has(jti);
-  },
+  await redis.set(blacklistKey(jti), "1", "EX", ttlSeconds);
+},
+async isBlacklisted(jti) {
+  return (await redis.exists(blacklistKey(jti))) === 1;
+},
 };
 
 /* ─────────────────────────────────────────────

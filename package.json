@@ -28,9 +28,11 @@
     "dotenv": "^16.6.1",
     "express": "^4.22.1",
     "express-async-errors": "^3.1.1",
-    "express-rate-limit": "^6.7.0",
+    "express-mongo-sanitize": "^2.2.0",
+    "express-rate-limit": "^8.5.2",
     "express-validator": "^7.3.1",
     "helmet": "^7.2.0",
+    "ioredis": "^5.11.1",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^7.8.9",
@@ -38,6 +40,7 @@
     "multer": "^1.4.5-lts.1",
     "multer-storage-cloudinary": "^4.0.0",
     "nodemailer": "^8.0.5",
+    "rate-limit-redis": "^5.0.0",
     "resend": "^6.9.3"
   },
   "devDependencies": {

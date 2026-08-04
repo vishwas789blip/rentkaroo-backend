@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticate, authorize, optionalAuth } from "../middleware/auth.middleware.js";
 import * as pgListingController from "../controllers/pgListing.controller.js";
-import upload from "../middleware/upload.js";
+import upload from "../middleware/upload.middleware.js";
 import {
   listingSchema,
   updateListingSchema,

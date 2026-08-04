@@ -1,37 +1,34 @@
 import PGListing from "../models/PGListing.js";
 import { APIError } from "../middleware/errorHandler.js";
+import { escapeRegex } from "../utils/escapeRegex.js";
 
 export class PGListingService {
 
-  /* ── Create ──────────────────────────────────────────────── */
-
   static async createListing(data, ownerId) {
-    // FIX: status not set — listing is live immediately
-    const listing = await PGListing.create({ ...data, owner: ownerId });
+    const listing = await PGListing.create({ ...data, owner: ownerId, status: "approved" });
     return listing;
   }
 
-  /* ── Get all listings (filters + pagination) ─────────────── */
-
   static async getListings(query = {}) {
-    // FIX: status: "approved" removed — only isDeleted filter remains
     const filter = { isDeleted: { $ne: true } };
 
-    /* Search — title, city, state */
+    /* Search — title, city, state (escaped) */
     if (query.search?.trim()) {
+      const safe = escapeRegex(query.search.trim());
       filter.$or = [
-        { title:           { $regex: query.search, $options: "i" } },
-        { "address.city":  { $regex: query.search, $options: "i" } },
-        { "address.state": { $regex: query.search, $options: "i" } },
+        { title:           { $regex: safe, $options: "i" } },
+        { "address.city":  { $regex: safe, $options: "i" } },
+        { "address.state": { $regex: safe, $options: "i" } },
       ];
     }
 
-    /* Location filter */
+    /* Location filter (escaped) */
     const location = query.location || query.city;
     if (location && location !== "All" && location.trim()) {
+      const safeLoc = escapeRegex(location.trim());
       const locConditions = [
-        { "address.city":  { $regex: location, $options: "i" } },
-        { "address.state": { $regex: location, $options: "i" } },
+        { "address.city":  { $regex: safeLoc, $options: "i" } },
+        { "address.state": { $regex: safeLoc, $options: "i" } },
       ];
       if (filter.$or) {
         filter.$and = [{ $or: filter.$or }, { $or: locConditions }];
@@ -94,7 +91,8 @@ export class PGListingService {
     };
   }
 
-  /* ── Get single listing ──────────────────────────────────── */
+  // ... baaki methods (getListingById, getOwnerListings, updateListing, deleteListing, updateAvailability) same rehne do
+/* ── Get single listing ──────────────────────────────────── */
 
   static async getListingById(id) {
     const listing = await PGListing.findById(id)

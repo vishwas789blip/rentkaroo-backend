@@ -66,16 +66,19 @@ const pgListingSchema = new mongoose.Schema(
       },
     },
 
+    status: {
+      type: String,
+      enum: ["pending", "approved", "rejected"],
+      default: "approved", 
+    },
+    isVerified: { type: Boolean, default: false },
+
     amenities: [{ type: String, trim: true, lowercase: true }],
 
     rating: {
       average: { type: Number, default: 0, min: 0, max: 5 },
       count:   { type: Number, default: 0, min: 0 },
     },
-
-    // FIX: status field REMOVED — no admin approval needed
-    // Listings go live immediately after creation
-    // Admin can only delete inappropriate listings
 
     isDeleted: { type: Boolean, default: false, index: true },
     deletedAt: { type: Date,    default: null },

@@ -6,3 +6,4 @@ build/
 .env
 .seed.js
 *.log
+complete.txt

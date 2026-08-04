@@ -186,15 +186,6 @@ export const getListingById = async (req, res) => {
 };
 
 /* ─────────────────────────────────────────────
-   Get all users  (admin — protect with role guard)
-───────────────────────────────────────────── */
-
-export const getAllUsers = async (req, res) => {
-  const users = await User.find().select("-password");
-  res.status(200).json({ success: true, data: { users } });
-};
-
-/* ─────────────────────────────────────────────
    Logout
    POST /auth/logout
 ───────────────────────────────────────────── */
@@ -206,4 +197,20 @@ export const logout = async (req, res) => {
   await AuthService.logout(req.user.id, rawToken);
 
   res.status(200).json({ success: true, message: "Logged out successfully" });
+};
+
+export const getAllUsers = async (req, res) => {
+  const page  = Math.max(1, Number(req.query.page)  || 1);
+  const limit = Math.min(50, Math.max(1, Number(req.query.limit) || 20));
+  const skip  = (page - 1) * limit;
+
+  const [users, total] = await Promise.all([
+    User.find().select("-password").skip(skip).limit(limit).sort({ createdAt: -1 }),
+    User.countDocuments(),
+  ]);
+
+  res.status(200).json({
+    success: true,
+    data: { users, pagination: { total, page, pages: Math.ceil(total / limit) } },
+  });
 };

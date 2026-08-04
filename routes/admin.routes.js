@@ -8,8 +8,6 @@ import Review from "../models/Review.js";
 
 const router = express.Router();
 
-// All admin routes require authentication + admin role
-// Apply once here instead of repeating on every route
 router.use(authenticate, authorize("admin"));
 
 /* ─────────────────────────────────────────────
@@ -228,8 +226,6 @@ router.delete("/listings/:id", async (req, res) => {
 router.get("/bookings", async (req, res) => {
   const { page, limit, skip } = paginate(req.query);
   const filter = {};
-
-  if (req.query.status) filter.status = req.query.status;
 
   const [bookings, total] = await Promise.all([
     Booking.find(filter)

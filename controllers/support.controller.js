@@ -111,3 +111,19 @@ export const adminReply = async (req, res) => {
     data:    { ticket },
   });
 };
+
+// controllers/support.controller.js — end mein add karo
+export const updateStatus = async (req, res) => {
+  const ticket = await supportService.updateTicketStatus(
+    req.params.id,
+    req.body.status
+  );
+
+  if (!ticket) throw new APIError("Ticket not found", 404);
+
+  res.status(200).json({
+    success: true,
+    message: "Ticket status updated",
+    data: { ticket },
+  });
+};

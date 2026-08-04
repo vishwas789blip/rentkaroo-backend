@@ -1,6 +1,8 @@
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { APIError } from "./errorHandler.js";
+import redis from "../config/redis.js";
+import { blacklistKey } from "../utils/redisKeys.js";
 
 /* ─────────────────────────────────────────────
    Token extraction
@@ -20,24 +22,17 @@ const extractToken = (req) => {
    if you move this to a lib/tokenStore.js singleton.
 ───────────────────────────────────────────── */
 
-const blacklist = {
-  /** @type {Set<string>} */
-  _store: new Set(),
 
+const blacklist = {
   async has(jti) {
-    // redis: return (await redis.exists(`bl:${jti}`)) === 1;
-    return this._store.has(jti);
+    const exists = await redis.exists(blacklistKey(jti));
+    return exists === 1;
   },
 
   async add(jti, ttlSeconds) {
-    // redis: await redis.set(`bl:${jti}`, "1", "EX", ttlSeconds);
-    this._store.add(jti);
+    await redis.set(blacklistKey(jti), "1", "EX", ttlSeconds);
   },
 };
-
-// Export so auth.service.js logout can share the same store.
-// In production, both modules import from lib/tokenStore.js instead.
-export { blacklist };
 
 /* ─────────────────────────────────────────────
    authenticate
@@ -56,7 +51,6 @@ export const authenticate = async (req, res, next) => {
       throw new APIError("JWT secret not configured", 500);
     }
 
-    // 1. Verify signature + expiry
     let decoded;
     try {
       decoded = jwt.verify(token, process.env.JWT_SECRET);
@@ -67,13 +61,10 @@ export const authenticate = async (req, res, next) => {
       );
     }
 
-    // 2. Check blacklist (catches logged-out tokens still within TTL)
     if (decoded.jti && (await blacklist.has(decoded.jti))) {
       throw new APIError("Token has been revoked", 401);
     }
 
-    // 3. Hydrate from DB — catches deleted users and role changes
-    //    Select only the fields middleware needs; no password, no bloat.
     const user = await User.findById(decoded.id).select(
       "name email role isActive isVerified"
     );
@@ -90,9 +81,7 @@ export const authenticate = async (req, res, next) => {
       throw new APIError("Email not verified", 403);
     }
 
-    // Attach the live DB user — controllers get fresh data, not stale payload
     req.user  = user;
-    // Keep the raw token available for logout (needs to blacklist jti)
     req.token = token;
 
     next();

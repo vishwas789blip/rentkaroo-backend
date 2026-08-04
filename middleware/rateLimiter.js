@@ -1,7 +1,16 @@
 import rateLimit from 'express-rate-limit';
+import { RedisStore } from 'rate-limit-redis';
+import redis from '../config/redis.js';
+
+const makeStore = (prefix) =>
+  new RedisStore({
+    sendCommand: (...args) => redis.call(...args),
+    prefix: `rl:${prefix}:`,
+});
 
 // General API limiter
 export const generalLimiter = rateLimit({
+  store: makeStore('general'),
   windowMs: (process.env.RATE_LIMIT_WINDOW || 15) * 60 * 1000,
   max: Number(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   standardHeaders: true,
@@ -14,6 +23,7 @@ export const generalLimiter = rateLimit({
 
 // Auth limiter (Login/Register protection)
 export const authLimiter = rateLimit({
+  store: makeStore('auth'),
   windowMs: 15 * 60 * 1000,
   max: 5,
   skipSuccessfulRequests: true,
@@ -25,6 +35,7 @@ export const authLimiter = rateLimit({
 
 // Booking limiter (prevent spam bookings)
 export const bookingLimiter = rateLimit({
+  store: makeStore('booking'),
   windowMs: 60 * 60 * 1000,
   max: 20,
   message: {
@@ -35,6 +46,7 @@ export const bookingLimiter = rateLimit({
 
 // Review limiter (prevent spam reviews)
 export const reviewLimiter = rateLimit({
+  store: makeStore('review'),
   windowMs: 10 * 60 * 1000, 
   max: 10, 
   standardHeaders: true,

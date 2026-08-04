@@ -1,0 +1,1 @@
+export const blacklistKey = (jti) => `bl:${jti}`;

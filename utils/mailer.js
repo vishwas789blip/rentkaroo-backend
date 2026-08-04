@@ -8,18 +8,19 @@ let transporter = null;
 function getTransporter() {
   if (transporter) return transporter;
 
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-    throw new Error("SMTP credentials missing in .env");
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error("Email credentials missing in .env");
   }
 
   transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT),
-    secure: false,
+    "service" : "gmail",
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
+      user: process.env.EMAIL_USER.trim(),
+      pass: process.env.EMAIL_PASS.trim(),
     },
+    tls:{
+      rejectUnauthorized: false
+    }
   });
 
   return transporter;
@@ -140,7 +141,7 @@ export async function sendOtpVerifyEmail({ to, name, otp, expiresInMinutes }) {
   const mailer = getTransporter(); // Singleton instance re-used smoothly
 
   await mailer.sendMail({
-    from: `"RentKaroo" <${process.env.SMTP_USER}>`,
+    from: `"RentKaroo" <${process.env.EMAIL_USER}>`,
     to,
     subject: `${otp} is your verification code`,
     html: otpVerifyTemplate({ name, otp, expiresInMinutes }),
@@ -151,7 +152,7 @@ export async function sendOtpResetEmail({ to, name, otp, expiresInMinutes }) {
   const mailer = getTransporter(); 
 
   await mailer.sendMail({
-    from: `"RentKaroo" <${process.env.SMTP_USER}>`,
+    from: `"RentKaroo" <${process.env.EMAIL_USER}>`,
     to,
     subject: `${otp} is your password reset code`,
     html: otpResetTemplate({ name, otp, expiresInMinutes }),

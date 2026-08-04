@@ -1,6 +1,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
+import { validateEnv } from "./config/validateEnv.js";
+validateEnv();
+
 import express from "express";
 import cors from "cors";
 import helmet from "helmet";
@@ -12,6 +15,7 @@ import "express-async-errors";
 import { connectDB } from "./config/database.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { generalLimiter } from "./middleware/rateLimiter.js";
+import mongoSanitize from "express-mongo-sanitize";
 
 import authRoutes      from "./routes/auth.routes.js";
 import pgListingRoutes from "./routes/pgListing.routes.js";
@@ -32,15 +36,13 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://rentkaroo-frontend.vercel.app",
+  "https://rentkaroo-frontend.vercel.app",  // sirf yeh exact production domain
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Postman/server-to-server calls mein origin undefined hota hai — allow karo
     if (!origin) return callback(null, true);
-    const allowed = allowedOrigins.includes(origin) || /\.vercel\.app$/.test(origin);
-    if (allowed) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
     console.error(`CORS blocked: ${origin}`);
     return callback(new Error("Not allowed by CORS"));
   },
@@ -48,7 +50,7 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
-
+// wildcard regex hata diya — sirf exact domains allow honge
 app.use(cors(corsOptions));
 
 // Preflight (OPTIONS) requests ko explicitly handle karo — CORS ke turant baad
@@ -70,6 +72,8 @@ app.use(cookieParser());
 if (process.env.NODE_ENV === "development") {
   app.use(morgan("dev"));
 }
+
+app.use(mongoSanitize());  // body parsers ke baad add karo
 
 /* ================= 5. ROUTES ================= */
 app.use("/api/v1/auth",        authRoutes);

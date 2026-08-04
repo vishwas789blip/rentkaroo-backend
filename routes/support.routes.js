@@ -2,7 +2,8 @@ import express from "express";
 import { authenticate, authorize } from "../middleware/auth.middleware.js";
 import { asyncWrapper } from "../middleware/asyncWrapper.js";
 import * as supportController from "../controllers/support.controller.js";
-import { validateBody, createTicketSchema, replySchema, statusSchema } from "../joi/support.joi.js";
+import validateBody from "../middleware/validation.middleware.js";            
+import {  createTicketSchema, replySchema, statusSchema } from "../joi/support.joi.js";
 
 const router = express.Router();
 
