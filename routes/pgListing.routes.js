@@ -57,7 +57,7 @@ router.put(
   authorize("pg_owner", "admin"),
   upload.array("images", 5),
   (req, res, next) => {
-    req.body = parseListingBody(req.body);
+    req.body = parseListingBody(req.body, true);
     next();
   },
   validateBody(updateListingSchema),

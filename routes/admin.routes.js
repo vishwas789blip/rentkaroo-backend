@@ -5,6 +5,7 @@ import User from "../models/User.js";
 import PGListing from "../models/PGListing.js";
 import Booking from "../models/Booking.js";
 import Review from "../models/Review.js";
+import { ReviewService } from "../services/review.service.js";
 
 const router = express.Router();
 
@@ -227,10 +228,12 @@ router.get("/bookings", async (req, res) => {
   const { page, limit, skip } = paginate(req.query);
   const filter = {};
 
+  if (req.query.status) filter.status = req.query.status;
+
   const [bookings, total] = await Promise.all([
     Booking.find(filter)
       .populate("user", "name email")
-      .populate("pgListingId", "title address")
+      .populate("pgListing", "title address")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -277,6 +280,8 @@ router.delete("/reviews/:id", async (req, res) => {
   review.isDeleted = true;
   review.deletedAt = new Date();
   await review.save();
+
+  await ReviewService.updateListingRating(review.pgListing);
 
   res.status(200).json({ success: true, message: "Review deleted successfully" });
 });

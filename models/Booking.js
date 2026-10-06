@@ -129,9 +129,9 @@ const bookingSchema = new mongoose.Schema(
 
 /* ================= INDEXES ================= */
 
-bookingSchema.index({ user: 1 });
-bookingSchema.index({ pgOwner: 1 });
-bookingSchema.index({ pgListing: 1 });
+bookingSchema.index({ user: 1, createdAt: -1 });
+bookingSchema.index({ pgOwner: 1, createdAt: -1 });
+bookingSchema.index({ pgListing: 1, checkInDate: 1, checkOutDate: 1 });
 bookingSchema.index({ status: 1 });
 bookingSchema.index({ checkInDate: 1 });
 bookingSchema.index({ createdAt: -1 });

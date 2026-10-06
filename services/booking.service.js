@@ -58,16 +58,19 @@ export class BookingService {
       throw new APIError("You already have an active booking for this PG", 400);
     }
 
-    // Overlap check
-    const overlappingBooking = await Booking.findOne({
+    // Overlap check against available rooms
+    const overlappingBookings = await Booking.find({
       pgListing:   pgListingId,
       status:      { $in: ["pending", "approved"] },
       checkInDate:  { $lt: checkout },
       checkOutDate: { $gt: checkin },
     });
 
-    if (overlappingBooking) {
-      throw new APIError("Rooms already booked for selected dates", 400);
+    const bookedRoomsCount = overlappingBookings.reduce((sum, b) => sum + (b.numberOfRooms || 1), 0);
+    const totalRooms = listing.rooms.totalRooms || listing.rooms.availableRooms;
+
+    if (bookedRoomsCount + numberOfRooms > totalRooms) {
+      throw new APIError("Not enough rooms available for selected dates", 400);
     }
 
     // Price calculation
@@ -88,7 +91,7 @@ export class BookingService {
       status:       "pending",
     });
 
-    return booking.populate("pgListing", "title pricePerMonth address");
+    return booking.populate("pgListing", "title pricePerMonth address images");
   }
 
 
@@ -96,15 +99,17 @@ export class BookingService {
      USER BOOKINGS  (with pagination + status filter)
   ───────────────────────────────────────────── */
 
-  static async getUserBookings(userId, { page = 1, limit = 10, status } = {}) {
+  static async getUserBookings(userId, query = {}) {
+    const page  = Math.max(1, Number(query.page)  || 1);
+    const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
     const filter = { user: userId };
-    if (status) filter.status = status;
+    if (query.status) filter.status = query.status;
 
     const skip = (page - 1) * limit;
 
     const [bookings, total] = await Promise.all([
       Booking.find(filter)
-        .populate("pgListing", "title pricePerMonth address")
+        .populate("pgListing", "title pricePerMonth address images")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
@@ -127,15 +132,17 @@ export class BookingService {
      OWNER BOOKINGS  (with pagination + status filter)
   ───────────────────────────────────────────── */
 
-  static async getOwnerBookings(ownerId, { page = 1, limit = 10, status } = {}) {
+  static async getOwnerBookings(ownerId, query = {}) {
+    const page  = Math.max(1, Number(query.page)  || 1);
+    const limit = Math.min(50, Math.max(1, Number(query.limit) || 10));
     const filter = { pgOwner: ownerId };
-    if (status) filter.status = status;
+    if (query.status) filter.status = query.status;
 
     const skip = (page - 1) * limit;
 
     const [bookings, total] = await Promise.all([
       Booking.find(filter)
-        .populate("pgListing", "title pricePerMonth address")
+        .populate("pgListing", "title pricePerMonth address images")
         .populate("user", "name email")
         .sort({ createdAt: -1 })
         .skip(skip)
@@ -185,12 +192,12 @@ export class BookingService {
      APPROVE BOOKING
   ───────────────────────────────────────────── */
 
-  static async approveBooking(id, ownerId) {
+  static async approveBooking(id, userId, role) {
     const booking = await Booking.findById(id);
 
-    if (!booking)                                  throw new APIError("Booking not found", 404);
-    if (booking.pgOwner.toString() !== ownerId)    throw new APIError("Unauthorized", 403);
-    if (booking.status !== "pending")              throw new APIError("Only pending bookings can be approved", 400);
+    if (!booking)                                                       throw new APIError("Booking not found", 404);
+    if (role !== "admin" && booking.pgOwner.toString() !== userId)     throw new APIError("Unauthorized", 403);
+    if (booking.status !== "pending")                                   throw new APIError("Only pending bookings can be approved", 400);
 
     // Atomic room reduction — race condition safe
     const updated = await PGListing.findOneAndUpdate(
@@ -211,7 +218,7 @@ export class BookingService {
     booking.status = "approved";
     await booking.save();
 
-    return booking.populate("pgListing", "title pricePerMonth");
+    return booking.populate("pgListing", "title pricePerMonth address images");
   }
 
 
@@ -219,12 +226,12 @@ export class BookingService {
      REJECT BOOKING
   ───────────────────────────────────────────── */
 
-  static async rejectBooking(id, ownerId, reason) {
+  static async rejectBooking(id, userId, reason, role) {
     const booking = await Booking.findById(id);
 
-    if (!booking)                                throw new APIError("Booking not found", 404);
-    if (booking.pgOwner.toString() !== ownerId)  throw new APIError("Unauthorized", 403);
-    if (booking.status !== "pending")            throw new APIError("Only pending bookings can be rejected", 400);
+    if (!booking)                                                   throw new APIError("Booking not found", 404);
+    if (role !== "admin" && booking.pgOwner.toString() !== userId) throw new APIError("Unauthorized", 403);
+    if (booking.status !== "pending")                               throw new APIError("Only pending bookings can be rejected", 400);
 
     booking.status          = "rejected";
     booking.rejectionReason = reason?.trim() || "Rejected by owner";
@@ -238,17 +245,18 @@ export class BookingService {
      CANCEL BOOKING
   ───────────────────────────────────────────── */
 
-  static async cancelBooking(id, userId) {
+  static async cancelBooking(id, userId, role) {
     const booking = await Booking.findById(id);
 
     if (!booking) throw new APIError("Booking not found", 404);
 
     const isUser  = booking.user.toString()     === userId;
     const isOwner = booking.pgOwner.toString()  === userId;
+    const isAdmin = role === "admin";
 
-    if (!isUser && !isOwner) throw new APIError("Unauthorized", 403);
-    if (booking.status === "cancelled") throw new APIError("Booking already cancelled", 400);
-    if (booking.status === "rejected")  throw new APIError("Cannot cancel a rejected booking", 400);
+    if (!isUser && !isOwner && !isAdmin) throw new APIError("Unauthorized", 403);
+    if (booking.status === "cancelled")  throw new APIError("Booking already cancelled", 400);
+    if (booking.status === "rejected")   throw new APIError("Cannot cancel a rejected booking", 400);
 
     // Restore rooms only if booking was approved
     if (booking.status === "approved") {
@@ -330,26 +338,24 @@ export class BookingService {
   }
 
 
-  /* ─────────────────────────────────────────────
-     ADMIN — GET ALL BOOKINGS  (with pagination + filters)
-  ───────────────────────────────────────────── */
-
-  static async getAllBookingsAdmin({ page = 1, limit = 20, status, search } = {}) {
+  static async getAllBookingsAdmin(query = {}) {
+    const page  = Math.max(1, Number(query.page)  || 1);
+    const limit = Math.min(50, Math.max(1, Number(query.limit) || 20));
     const filter = {};
 
-    if (status) filter.status = status;
+    if (query.status) filter.status = query.status;
 
     const skip = (page - 1) * limit;
 
-    let query = Booking.find(filter)
+    let queryExec = Booking.find(filter)
       .populate("user",      "name email")
-      .populate("pgListing", "title pricePerMonth address")
+      .populate("pgListing", "title pricePerMonth address images")
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
 
     const [bookings, total] = await Promise.all([
-      query,
+      queryExec,
       Booking.countDocuments(filter),
     ]);
 

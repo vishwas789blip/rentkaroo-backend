@@ -90,8 +90,8 @@ const pgListingSchema = new mongoose.Schema(
 
 pgListingSchema.index({ "address.city": "text", title: "text", description: "text" });
 pgListingSchema.index({ "address.city": 1, pricePerMonth: 1, "rooms.roomType": 1 });
-
-// FIX: status removed from index — no longer used
+pgListingSchema.index({ isDeleted: 1, createdAt: -1 });
+pgListingSchema.index({ isDeleted: 1, "address.city": 1, pricePerMonth: 1 });
 pgListingSchema.index({ isDeleted: 1 });
 
 /* ── Pre-save hook ───────────────────────────────────────── */

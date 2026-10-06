@@ -1,5 +1,5 @@
 import express from "express";
-import { authenticate, authorize } from "../middleware/auth.middleware.js";
+import { authenticate, authorize, optionalAuth } from "../middleware/auth.middleware.js";
 import { asyncWrapper } from "../middleware/asyncWrapper.js";
 import * as supportController from "../controllers/support.controller.js";
 import validateBody from "../middleware/validation.middleware.js";            
@@ -8,13 +8,13 @@ import {  createTicketSchema, replySchema, statusSchema } from "../joi/support.j
 const router = express.Router();
 
 /* ─────────────────────────────────────────────
-   Authenticated User Routes
+   User Routes
 ───────────────────────────────────────────── */
 
-// POST /api/v1/support
+// POST /api/v1/support (logged-in or guest)
 router.post(
   "/",
-  authenticate,
+  optionalAuth,
   validateBody(createTicketSchema),
   asyncWrapper(supportController.createTicket)
 );

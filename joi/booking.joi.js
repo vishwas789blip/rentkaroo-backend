@@ -4,10 +4,11 @@ const createBookingSchema = Joi.object({
   pgListingId: Joi.string().required(),
 
   checkInDate: Joi.date()
-    .min("now") // Prevents past bookings
+    .iso()
     .required(),
 
   checkOutDate: Joi.date()
+    .iso()
     .greater(Joi.ref("checkInDate"))
     .min(Joi.ref("checkInDate", {
       adjust: (value) => {
@@ -37,9 +38,9 @@ const createBookingSchema = Joi.object({
       email: Joi.string().email().required(),
       phone: Joi.string().pattern(/^[0-9]{10}$/).required()
     })
-  ),
+  ).default([]).optional(),
 
-  specialRequests: Joi.string().allow("")
+  specialRequests: Joi.string().allow("").optional()
 });
 
 export { createBookingSchema };

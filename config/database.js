@@ -11,6 +11,9 @@ export const connectDB = async () => {
     const conn = await mongoose.connect(process.env.MONGODB_URI, {
       autoIndex: process.env.NODE_ENV !== "production",
       serverSelectionTimeoutMS: 5000,
+      maxPoolSize: process.env.DB_MAX_POOL_SIZE ? parseInt(process.env.DB_MAX_POOL_SIZE) : 50,
+      minPoolSize: 5,
+      socketTimeoutMS: 45000,
     });
 
     console.log("====================================");

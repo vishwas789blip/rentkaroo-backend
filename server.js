@@ -36,13 +36,19 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "http://localhost:5173",
   "http://127.0.0.1:5173",
-  "https://rentkaroo-frontend.vercel.app",  // sirf yeh exact production domain
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://rentkaroo-frontend.vercel.app",
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
 ];
 
 const corsOptions = {
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    if (process.env.NODE_ENV !== "production" && /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+      return callback(null, true);
+    }
     console.error(`CORS blocked: ${origin}`);
     return callback(new Error("Not allowed by CORS"));
   },

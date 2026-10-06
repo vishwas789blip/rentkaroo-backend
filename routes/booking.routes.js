@@ -30,7 +30,7 @@ router.get(
 router.patch(
   "/:id/cancel",
   authenticate,
-  authorize("user"),
+  authorize("user", "pg_owner", "admin"),
   asyncWrapper(bookingController.cancelBooking)
 );
 

@@ -44,7 +44,8 @@ export const createBooking = async (req, res) => {
 export const getUserBookings = async (req, res) => {
   try {
     const bookings = await BookingService.getUserBookings(
-      req.user.id
+      req.user.id,
+      req.query
     );
     res.status(200).json({
       success: true,
@@ -52,7 +53,7 @@ export const getUserBookings = async (req, res) => {
     });
   } catch (error) {
     console.error("User Booking Error:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
@@ -66,7 +67,8 @@ export const getUserBookings = async (req, res) => {
 export const getOwnerBookings = async (req, res) => {
   try {
     const bookings = await BookingService.getOwnerBookings(
-      req.user.id
+      req.user.id,
+      req.query
     );
 
     res.status(200).json({
@@ -75,7 +77,7 @@ export const getOwnerBookings = async (req, res) => {
     });
   } catch (error) {
     console.error("Owner Booking Error:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
@@ -117,7 +119,8 @@ export const approveBooking = async (req, res) => {
   try {
     const booking = await BookingService.approveBooking(
       req.params.id,
-      req.user.id
+      req.user.id,
+      req.user.role
     );
 
     res.status(200).json({
@@ -144,7 +147,8 @@ export const rejectBooking = async (req, res) => {
     const booking = await BookingService.rejectBooking(
       req.params.id,
       req.user.id,
-      req.body.rejectionReason
+      req.body.rejectionReason,
+      req.user.role
     );
     res.status(200).json({
       success: true,
@@ -168,7 +172,8 @@ export const cancelBooking = async (req, res) => {
   try {
     const booking = await BookingService.cancelBooking(
       req.params.id,
-      req.user.id
+      req.user.id,
+      req.user.role
     );
 
     res.status(200).json({
@@ -203,7 +208,7 @@ export const getOwnerAnalytics = async (req, res) => {
 
   } catch (error) {
     console.error("Analytics Error:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
@@ -216,7 +221,7 @@ export const getOwnerAnalytics = async (req, res) => {
 
 export const getAllBookingsAdmin = async (req, res) => {
   try {
-    const bookings = await BookingService.getAllBookingsAdmin();
+    const bookings = await BookingService.getAllBookingsAdmin(req.query);
     res.status(200).json({
       success: true,
       data: bookings
@@ -224,7 +229,7 @@ export const getAllBookingsAdmin = async (req, res) => {
 
   } catch (error) {
     console.error("Admin Booking Error:", error);
-    res.status(500).json({
+    res.status(error.statusCode || 500).json({
       success: false,
       message: error.message
     });
