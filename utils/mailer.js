@@ -1,11 +1,64 @@
-import { Resend } from "resend";
 import nodemailer from "nodemailer";
+import { Resend } from "resend";
 
 /**
- * Resend Client (HTTP API over Port 443 — No SMTP timeouts on Render Free)
+ * Send email using Brevo Transactional Email REST API (Port 443 HTTPS)
+ * Completely avoids SMTP port blocking on Render Free and works for any recipient.
+ */
+async function sendViaBrevoApi({ to, name, subject, html }) {
+  const apiKey = (process.env.BREVO_API_KEY || process.env.SMTP_PASS || "").trim();
+  if (!apiKey) {
+    throw new Error("BREVO_API_KEY is missing in environment variables.");
+  }
+
+  const senderEmail = (
+    process.env.BREVO_SENDER_EMAIL ||
+    process.env.EMAIL_FROM_ADDRESS ||
+    process.env.EMAIL_USER ||
+    "vishwasprajapati910@gmail.com"
+  ).trim();
+
+  const senderName = process.env.APP_NAME || "RentKaroo";
+
+  const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+    method: "POST",
+    headers: {
+      "accept": "application/json",
+      "api-key": apiKey,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      sender: {
+        name: senderName,
+        email: senderEmail,
+      },
+      to: [
+        {
+          email: to,
+          name: name || to,
+        },
+      ],
+      subject,
+      htmlContent: html,
+    }),
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    const errorMsg = data?.message || `HTTP ${response.status}: ${response.statusText}`;
+    console.error("❌ Brevo REST API error:", errorMsg);
+    throw new Error(`Email delivery failed via Brevo API: ${errorMsg}`);
+  }
+
+  console.log(`✉️ Email successfully delivered via Brevo REST API to ${to} (MessageID: ${data?.messageId})`);
+  return data;
+}
+
+/**
+ * Resend Client (Optional Provider)
  */
 let resendClient = null;
-
 function getResendClient() {
   if (resendClient) return resendClient;
   if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
@@ -15,10 +68,9 @@ function getResendClient() {
 }
 
 /**
- * Singleton Nodemailer Transporter Instance (SMTP Fallback)
+ * Nodemailer Transporter (SMTP Fallback)
  */
 let transporter = null;
-
 export function getTransporter() {
   if (transporter) return transporter;
 
@@ -28,25 +80,18 @@ export function getTransporter() {
   const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || "").trim();
 
   if (!user || !pass) {
-    throw new Error("SMTP credentials missing in environment (SMTP_USER/SMTP_PASS or EMAIL_USER/EMAIL_PASS)");
+    throw new Error("SMTP credentials missing in environment");
   }
-
-  const isSecure = port === 465;
 
   transporter = nodemailer.createTransport({
     host,
     port,
-    secure: isSecure,
-    auth: {
-      user,
-      pass,
-    },
+    secure: port === 465,
+    auth: { user, pass },
     connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
-    tls: {
-      rejectUnauthorized: false,
-    },
+    tls: { rejectUnauthorized: false },
   });
 
   return transporter;
@@ -56,52 +101,46 @@ export function getTransporter() {
  * Diagnostic verify helper
  */
 export async function verifyMailer() {
+  if (process.env.BREVO_API_KEY) {
+    try {
+      const res = await fetch("https://api.brevo.com/v3/account", {
+        headers: { "api-key": process.env.BREVO_API_KEY.trim(), "accept": "application/json" },
+      });
+      if (res.ok) {
+        console.log("✉️ Mailer ready: Brevo REST API authenticated successfully over HTTPS (Port 443)");
+        return true;
+      }
+      const data = await res.json().catch(() => ({}));
+      console.error("❌ Brevo API key verification failed:", data?.message || res.statusText);
+      return false;
+    } catch (e) {
+      console.error("❌ Brevo connection error:", e.message);
+      return false;
+    }
+  }
+
   const resend = getResendClient();
   if (resend) {
     try {
       const domains = await resend.domains.list();
-      if (domains.error) {
-        console.error("❌ Resend API verification error:", domains.error.message);
-        return false;
+      if (!domains.error) {
+        console.log("✉️ Mailer ready: Resend API authenticated successfully over HTTPS (Port 443)");
+        return true;
       }
-      console.log("✉️ Mailer ready: Resend API authenticated successfully over HTTPS (Port 443)");
-      return true;
-    } catch (error) {
-      console.error("❌ Resend verification failed:", error.message);
-      return false;
+    } catch (e) {
+      console.error("❌ Resend verification error:", e.message);
     }
   }
 
   try {
     const mailer = getTransporter();
     await mailer.verify();
-    console.log("✉️ Mailer ready: SMTP connection verified successfully on port 2525");
+    console.log("✉️ Mailer ready: SMTP connection verified");
     return true;
   } catch (error) {
-    console.error("❌ Mailer configuration / connectivity failed:", error.message);
+    console.error("❌ Mailer SMTP failed:", error.message);
     return false;
   }
-}
-
-/* ─────────────────────────────────────────────
-   Sender Address Helper
-───────────────────────────────────────────── */
-
-function getFromAddress() {
-  const configured = (process.env.EMAIL_FROM || "").trim();
-
-  // If using Resend, unverified domains (like gmail.com) will fail Resend's policy.
-  // Use onboarding@resend.dev until a verified custom domain is configured in Resend.
-  if (process.env.RESEND_API_KEY) {
-    if (!configured || configured.includes("@gmail.com") || configured.includes("@yahoo.com")) {
-      return "RentKaroo <onboarding@resend.dev>";
-    }
-    return configured;
-  }
-
-  if (configured) return configured;
-  const user = (process.env.SMTP_USER || process.env.EMAIL_USER || "").trim();
-  return `"RentKaroo" <${user || "noreply@rentkaroo.com"}>`;
 }
 
 /* ─────────────────────────────────────────────
@@ -127,11 +166,9 @@ function baseTemplate(title, bodyHtml) {
         <!-- Header -->
         <tr>
           <td style="background:linear-gradient(135deg, #0f9660 0%, #1DB47F 100%);padding:28px 36px;">
-            <div style="display:flex;align-items:center;">
-              <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px;font-family:Georgia,serif;">
-                ${appName}
-              </span>
-            </div>
+            <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:0.5px;font-family:Georgia,serif;">
+              ${appName}
+            </span>
             <p style="margin:4px 0 0;color:rgba(255,255,255,0.85);font-size:13px;">
               Your Trusted Rental Marketplace
             </p>
@@ -245,14 +282,19 @@ export function otpResetTemplate({ name, otp, expiresInMinutes = 10 }) {
 }
 
 /* ─────────────────────────────────────────────
-   Unified Email Dispatcher (Resend API -> Nodemailer)
+   Unified Email Dispatcher (Brevo REST API -> Resend -> Nodemailer)
 ───────────────────────────────────────────── */
 
-async function dispatchEmail({ to, subject, html }) {
-  const resend = getResendClient();
-  const from = getFromAddress();
+async function dispatchEmail({ to, name, subject, html }) {
+  // 1. Brevo REST API (HTTPS Port 443 — Preferred for free plans without custom domains)
+  if (process.env.BREVO_API_KEY || (process.env.SMTP_PASS && process.env.SMTP_PASS.startsWith("xkeysib-"))) {
+    return await sendViaBrevoApi({ to, name, subject, html });
+  }
 
+  // 2. Resend API
+  const resend = getResendClient();
   if (resend) {
+    const from = process.env.EMAIL_FROM || "RentKaroo <onboarding@resend.dev>";
     const { data, error } = await resend.emails.send({
       from,
       to,
@@ -261,29 +303,31 @@ async function dispatchEmail({ to, subject, html }) {
     });
 
     if (error) {
-      console.error("❌ Resend API delivery error:", error.message);
+      console.error("❌ Resend error:", error.message);
       throw new Error(`Email delivery failed: ${error.message}`);
     }
 
-    console.log(`✉️ Email successfully delivered via Resend API to ${to} (ID: ${data?.id})`);
+    console.log(`✉️ Delivered via Resend to ${to} (ID: ${data?.id})`);
     return data;
   }
 
-  // Fallback to Nodemailer SMTP
+  // 3. Fallback to Nodemailer SMTP
   const mailer = getTransporter();
+  const from = process.env.EMAIL_FROM || `"RentKaroo" <${process.env.SMTP_USER || process.env.EMAIL_USER}>`;
   const result = await mailer.sendMail({
     from,
     to,
     subject,
     html,
   });
-  console.log(`✉️ Email delivered via SMTP to ${to} (ID: ${result?.messageId})`);
+  console.log(`✉️ Delivered via SMTP to ${to} (ID: ${result?.messageId})`);
   return result;
 }
 
 export async function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinutes = 15 }) {
   return dispatchEmail({
     to,
+    name,
     subject: "Reset your RentKaroo password",
     html: passwordResetTemplate({ name, resetUrl, expiresInMinutes }),
   });
@@ -292,6 +336,7 @@ export async function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinu
 export async function sendOtpVerifyEmail({ to, name, otp, expiresInMinutes = 10 }) {
   return dispatchEmail({
     to,
+    name,
     subject: `${otp} is your verification code`,
     html: otpVerifyTemplate({ name, otp, expiresInMinutes }),
   });
@@ -300,6 +345,7 @@ export async function sendOtpVerifyEmail({ to, name, otp, expiresInMinutes = 10 
 export async function sendOtpResetEmail({ to, name, otp, expiresInMinutes = 10 }) {
   return dispatchEmail({
     to,
+    name,
     subject: `${otp} is your password reset code`,
     html: otpResetTemplate({ name, otp, expiresInMinutes }),
   });
