@@ -285,16 +285,37 @@ export function otpResetTemplate({ name, otp, expiresInMinutes = 10 }) {
    Unified Email Dispatcher (Brevo REST API -> Resend -> Nodemailer)
 ───────────────────────────────────────────── */
 
+function getResendFromAddress() {
+  const raw = (process.env.EMAIL_FROM || "").trim();
+
+  // If EMAIL_FROM is empty or contains an unverified free domain (e.g. gmail.com)
+  if (!raw || /@(gmail|yahoo|hotmail|outlook)\.com/i.test(raw)) {
+    return "RentKaroo <onboarding@resend.dev>";
+  }
+
+  // Resend requires 'email@example.com' or 'Name <email@example.com>' without quotes around Name
+  const cleaned = raw.replace(/["']/g, "").trim();
+
+  if (/^[^<>]+\s*<[^\s@]+@[^\s@]+\.[^\s@]+>$/.test(cleaned)) {
+    return cleaned;
+  }
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) {
+    return `RentKaroo <${cleaned}>`;
+  }
+
+  return "RentKaroo <onboarding@resend.dev>";
+}
+
 async function dispatchEmail({ to, name, subject, html }) {
   // 1. Brevo REST API (HTTPS Port 443 — Preferred for free plans without custom domains)
   if (process.env.BREVO_API_KEY || (process.env.SMTP_PASS && process.env.SMTP_PASS.startsWith("xkeysib-"))) {
     return await sendViaBrevoApi({ to, name, subject, html });
   }
 
-  // 2. Resend API
+  // 2. Resend API (HTTPS Port 443)
   const resend = getResendClient();
   if (resend) {
-    const from = process.env.EMAIL_FROM || "RentKaroo <onboarding@resend.dev>";
+    const from = getResendFromAddress();
     const { data, error } = await resend.emails.send({
       from,
       to,
