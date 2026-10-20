@@ -1,8 +1,9 @@
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import User from "../models/User.js";
 import { APIError } from "../middleware/errorHandler.js";
 import { OtpService, OTP_EXPIRES_MINUTES } from "./otp.service.js";
-import { sendOtpVerifyEmail, sendOtpResetEmail } from "../utils/mailer.js";
+import { sendOtpVerifyEmail, sendOtpResetEmail, sendPasswordResetEmail } from "../utils/mailer.js";
 import redis from "../config/redis.js";
 import { blacklistKey } from "../utils/redisKeys.js";
 
@@ -207,30 +208,70 @@ export class AuthService {
   }
 
   /* ═══════════════════════════════════════════
-     FORGOT / RESET PASSWORD  (OTP-gated)
+     FORGOT / RESET PASSWORD FLOW
      ─────────────────────────────────────────── */
 
   static async forgotPassword(email) {
-    const user = await User.findOne({ email, isVerified: true });
+    const genericResponse = {
+      message: "If that email is registered, you will receive a password reset link shortly.",
+    };
 
-    if (user) {
-      const otp = await OtpService.generate("reset", email);
-      await sendOtpResetEmail({
-        to:               email,
-        name:             user.name,
-        otp,
-        expiresInMinutes: OTP_EXPIRES_MINUTES,
-      });
+    if (!email || typeof email !== "string") {
+      return genericResponse;
     }
 
-    // Always the same response — don't reveal whether email exists
-    return {
-      message: "If that email is registered you will receive a reset code shortly.",
-    };
+    const normalizedEmail = email.trim().toLowerCase();
+
+    // Find active, verified user (soft-deleted users are auto-excluded by userSchema.pre(/^find/))
+    const user = await User.findOne({
+      email: normalizedEmail,
+      isVerified: true,
+      isActive: { $ne: false },
+    });
+
+    if (!user) {
+      // Prevent email enumeration by returning generic response
+      return genericResponse;
+    }
+
+    // Generate cryptographically secure, unpredictable, single-use reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+
+    // Store only the hashed token in the database with 15-minute expiry
+    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+    const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+    user.resetPasswordToken = hashedToken;
+    user.resetPasswordExpires = expiry;
+    await user.save({ validateModifiedOnly: true });
+
+    // Build reset link using FRONTEND_URL or default production frontend
+    const frontendBase = (process.env.FRONTEND_URL || "https://rentkarooo.vercel.app").replace(/\/+$/, "");
+    const resetUrl = `${frontendBase}/reset-password/${resetToken}`;
+
+    // Send reset link through Nodemailer and Brevo SMTP on port 2525
+    try {
+      await sendPasswordResetEmail({
+        to: user.email,
+        name: user.name,
+        resetUrl,
+        expiresInMinutes: 15,
+      });
+    } catch (error) {
+      console.error("❌ Failed to send password reset email via Brevo SMTP:", error.message);
+      // Clean up stored token if email failed to prevent orphaned unusable tokens
+      user.resetPasswordToken = undefined;
+      user.resetPasswordExpires = undefined;
+      await user.save({ validateModifiedOnly: true });
+      throw new APIError("Failed to send password reset email. Please try again later.", 500);
+    }
+
+    // Generic response returned — never reveal tokens or account existence details
+    return genericResponse;
   }
 
   /**
-   * Verify the reset OTP and return a short-lived reset token.
+   * Verify reset OTP (retained for backward compatibility)
    */
   static async verifyResetOtp({ email, otp }) {
     await OtpService.verify("reset", email, otp);
@@ -248,29 +289,63 @@ export class AuthService {
     return { resetToken };
   }
 
-  static async resetPassword({ resetToken, newPassword }) {
-    const resetSecret = process.env.JWT_RESET_SECRET || process.env.JWT_SECRET;
+  static async resetPassword({ token, resetToken, newPassword }) {
+    const rawToken = (token || resetToken || "").toString().trim();
 
-    let decoded;
-    try {
-      decoded = jwt.verify(resetToken, resetSecret);
-    } catch {
-      throw new APIError("Reset token expired or invalid. Please start over.", 400);
+    if (!rawToken) {
+      throw new APIError("Password reset token is required", 400);
     }
 
-    if (decoded.purpose !== "reset") {
-      throw new APIError("Invalid reset token", 400);
+    if (!newPassword || typeof newPassword !== "string" || newPassword.length < 6) {
+      throw new APIError("Password must be at least 6 characters long", 400);
     }
 
-    const user = await User.findById(decoded.id).select("+password");
-    if (!user) throw new APIError("User not found", 404);
+    // Hash the supplied token to compare securely with stored hash in DB
+    const hashedToken = crypto.createHash("sha256").update(rawToken).digest("hex");
 
-    user.password = newPassword; // model pre-save hook re-hashes
+    // Look up user with matching unexpired token
+    let user = await User.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: Date.now() },
+    }).select("+password +resetPasswordToken +resetPasswordExpires");
+
+    // Backwards-compatibility fallback: if token is a legacy JWT reset token
+    if (!user) {
+      const resetSecret = process.env.JWT_RESET_SECRET || process.env.JWT_SECRET;
+      try {
+        const decoded = jwt.verify(rawToken, resetSecret);
+        if (decoded && decoded.purpose === "reset") {
+          user = await User.findById(decoded.id).select("+password");
+        }
+      } catch {
+        // Not a JWT either
+      }
+    }
+
+    if (!user) {
+      throw new APIError("Password reset link is invalid or has expired. Please request a new one.", 400);
+    }
+
+    // Update password — model pre-save hook re-hashes using bcrypt automatically
+    user.password = newPassword;
+
+    // Atomically invalidate the reset token so it cannot be reused
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    user.loginAttempts = 0;
+    user.lockUntil = undefined;
     await user.save();
 
-    await tokenStore.deleteRefresh(user._id);
+    // Invalidate existing sessions and refresh tokens in Redis
+    try {
+      await tokenStore.deleteRefresh(user._id);
+    } catch (redisErr) {
+      console.warn("Could not invalidate refresh token in Redis:", redisErr.message);
+    }
 
-    return { message: "Password reset successfully. Please log in." };
+    return {
+      message: "Password has been reset successfully. Please log in with your new password.",
+    };
   }
 
   /* ─────────────────────────────────────────────

@@ -56,3 +56,16 @@ export const reviewLimiter = rateLimit({
     message: 'Too many review actions from this IP, please try again later'
   }
 });
+
+// Password reset limiter (strict protection against brute-force & spam)
+export const passwordResetLimiter = rateLimit({
+  store: makeStore('password-reset'),
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many password reset attempts from this IP. Please try again after 15 minutes.'
+  }
+});

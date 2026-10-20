@@ -22,18 +22,19 @@ const refreshTokenSchema = Joi.object({
 });
 
 const emailSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().email().trim().lowercase().required(),
 });
 
 const verifyResetOtpSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: Joi.string().email().trim().lowercase().required(),
   otp:   Joi.string().length(6).pattern(/^\d+$/).required(),
 });
 
 const resetPasswordSchema = Joi.object({
-  resetToken:  Joi.string().required(),
-  newPassword: Joi.string().min(6).required(),
-});
+  token:       Joi.string().min(10).optional(),
+  resetToken:  Joi.string().min(10).optional(),
+  newPassword: Joi.string().min(6).max(128).required(),
+}).or("token", "resetToken");
 
 const changePasswordSchema = Joi.object({
   oldPassword: Joi.string().required(),

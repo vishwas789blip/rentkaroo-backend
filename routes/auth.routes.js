@@ -18,6 +18,7 @@ import {
 import { authenticate, authorize } from "../middleware/auth.middleware.js";
 
 import validateBody from "../middleware/validation.middleware.js";
+import { passwordResetLimiter } from "../middleware/rateLimiter.js";
 import {
   registerSchema,
   verifyEmailSchema,
@@ -43,10 +44,10 @@ router.post("/resend-otp",       validateBody(emailSchema), resendVerifyOtp); //
 // Login
 router.post("/login",            validateBody(loginSchema), login);
 
-// Forgot / reset password flow
-router.post("/forgot-password",  validateBody(emailSchema), forgotPassword); // Sirf email check karega
+// Forgot / reset password flow (rate limited)
+router.post("/forgot-password",  passwordResetLimiter, validateBody(emailSchema), forgotPassword);
 router.post("/verify-reset-otp", validateBody(verifyResetOtpSchema), verifyResetOtp);
-router.post("/reset-password",   validateBody(resetPasswordSchema), resetPassword);
+router.post("/reset-password",   passwordResetLimiter, validateBody(resetPasswordSchema), resetPassword);
 
 // Token management
 router.post("/refresh",          validateBody(refreshTokenSchema), refreshToken);

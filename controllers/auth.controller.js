@@ -82,8 +82,11 @@ export const verifyResetOtp = async (req, res) => {
 ───────────────────────────────────────────── */
 
 export const resetPassword = async (req, res) => {
-
-  const result = await AuthService.resetPassword(req.body);
+  const result = await AuthService.resetPassword({
+    ...req.query,
+    ...req.params,
+    ...req.body,
+  });
 
   res.status(200).json({ success: true, ...result });
 };

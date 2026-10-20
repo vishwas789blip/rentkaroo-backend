@@ -84,9 +84,15 @@ const userSchema = new mongoose.Schema(
     lockUntil: Date,
     lastLogin: Date,
 
-    /* ── Password reset (OTP flow se handle hota hai) ── */
-    // resetPasswordToken aur resetPasswordExpiry hata diye —
-    // ab JWT reset token use hota hai (auth.service.js mein)
+    /* ── Password reset (single-use hashed token) ── */
+    resetPasswordToken: {
+      type:   String,
+      select: false,
+    },
+    resetPasswordExpires: {
+      type:   Date,
+      select: false,
+    },
   },
   { timestamps: true }
 );
@@ -136,6 +142,8 @@ userSchema.methods.toJSON = function () {
   delete obj.lockUntil;
   delete obj.isDeleted;
   delete obj.deletedAt;
+  delete obj.resetPasswordToken;
+  delete obj.resetPasswordExpires;
   return obj;
 };
 
@@ -147,6 +155,7 @@ userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 userSchema.index({ isVerified: 1 });
+userSchema.index({ resetPasswordToken: 1 });
 userSchema.index({ createdAt: -1 });
 
 export default mongoose.model("User", userSchema);
