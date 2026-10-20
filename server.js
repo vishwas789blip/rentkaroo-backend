@@ -17,29 +17,22 @@ import { errorHandler } from "./middleware/errorHandler.js";
 import { generalLimiter } from "./middleware/rateLimiter.js";
 import mongoSanitize from "express-mongo-sanitize";
 
-import authRoutes      from "./routes/auth.routes.js";
+import authRoutes from "./routes/auth.routes.js";
 import pgListingRoutes from "./routes/pgListing.routes.js";
-import bookingRoutes   from "./routes/booking.routes.js";
-import reviewRoutes    from "./routes/review.routes.js";
-import adminRoutes     from "./routes/admin.routes.js";
-import supportRoutes   from "./routes/support.routes.js";
+import bookingRoutes from "./routes/booking.routes.js";
+import reviewRoutes from "./routes/review.routes.js";
+import adminRoutes from "./routes/admin.routes.js";
+import supportRoutes from "./routes/support.routes.js";
 
-const app  = express();
+const app = express();
 const PORT = process.env.PORT || 5000;
 
 app.set("trust proxy", 1);
 
-/* ================= 1. CORS — SABSE PEHLE ================= */
-// CORS aur OPTIONS handler MUST be first — helmet/limiter se pehle
-// Warna preflight (OPTIONS) request block ho jaati hai bina headers ke
+/* ================= 1. CORS ================= */
 
 const allowedOrigins = [
-  "http://localhost:5173",
-  "http://127.0.0.1:5173",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "https://rentkaroo-frontend.vercel.app",
-  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
+  "https://rentkarooo.vercel.app",
 ];
 
 const corsOptions = {
@@ -56,18 +49,15 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
 };
-// wildcard regex hata diya — sirf exact domains allow honge
 app.use(cors(corsOptions));
 
-// Preflight (OPTIONS) requests ko explicitly handle karo — CORS ke turant baad
 app.options("*", cors(corsOptions));
 
 /* ================= 2. SECURITY & OPTIMIZATION ================= */
 app.use(helmet());
 app.use(compression());
 
-/* ================= 3. RATE LIMITER — CORS ke baad ================= */
-// Agar pehle lagao toh OPTIONS preflight count ho jaati hai limit mein
+/* ================= 3. RATE LIMITER ================= */
 app.use(generalLimiter);
 
 /* ================= 4. BODY PARSERS ================= */
@@ -82,12 +72,12 @@ if (process.env.NODE_ENV === "development") {
 app.use(mongoSanitize());  // body parsers ke baad add karo
 
 /* ================= 5. ROUTES ================= */
-app.use("/api/v1/auth",        authRoutes);
+app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/pg-listings", pgListingRoutes);
-app.use("/api/v1/bookings",    bookingRoutes);
-app.use("/api/v1/reviews",     reviewRoutes);
-app.use("/api/v1/admin",       adminRoutes);
-app.use("/api/v1/support",     supportRoutes);
+app.use("/api/v1/bookings", bookingRoutes);
+app.use("/api/v1/reviews", reviewRoutes);
+app.use("/api/v1/admin", adminRoutes);
+app.use("/api/v1/support", supportRoutes);
 
 /* ================= 6. HEALTH & 404 ================= */
 app.get("/", (_req, res) => res.send("🚀 RentKaroo API running"));
