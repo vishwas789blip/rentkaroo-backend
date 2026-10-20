@@ -9,11 +9,12 @@ export const validateEnv = () => {
   const missing = REQUIRED_ENV_VARS.filter((key) => !process.env[key]);
 
   const hasEmail =
-    (process.env.SMTP_USER && process.env.SMTP_PASS) ||
-    (process.env.EMAIL_USER && process.env.EMAIL_PASS);
+    Boolean(process.env.RESEND_API_KEY) ||
+    Boolean(process.env.SMTP_USER && process.env.SMTP_PASS) ||
+    Boolean(process.env.EMAIL_USER && process.env.EMAIL_PASS);
 
   if (!hasEmail) {
-    missing.push("SMTP_USER and SMTP_PASS (or EMAIL_USER and EMAIL_PASS)");
+    missing.push("RESEND_API_KEY (or SMTP_USER/PASS or EMAIL_USER/PASS)");
   }
 
   if (missing.length > 0) {

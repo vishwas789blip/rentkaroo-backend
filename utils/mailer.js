@@ -1,7 +1,21 @@
+import { Resend } from "resend";
 import nodemailer from "nodemailer";
 
 /**
- * Singleton Transporter Instance
+ * Resend Client (HTTP API over Port 443 — No SMTP timeouts on Render Free)
+ */
+let resendClient = null;
+
+function getResendClient() {
+  if (resendClient) return resendClient;
+  if (process.env.RESEND_API_KEY && process.env.RESEND_API_KEY.trim()) {
+    resendClient = new Resend(process.env.RESEND_API_KEY.trim());
+  }
+  return resendClient;
+}
+
+/**
+ * Singleton Nodemailer Transporter Instance (SMTP Fallback)
  */
 let transporter = null;
 
@@ -14,10 +28,9 @@ export function getTransporter() {
   const pass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || "").trim();
 
   if (!user || !pass) {
-    throw new Error("Email credentials missing in environment (SMTP_USER/SMTP_PASS or EMAIL_USER/EMAIL_PASS)");
+    throw new Error("SMTP credentials missing in environment (SMTP_USER/SMTP_PASS or EMAIL_USER/EMAIL_PASS)");
   }
 
-  // secure: true for 465, false for 2525 / 587
   const isSecure = port === 465;
 
   transporter = nodemailer.createTransport({
@@ -28,7 +41,7 @@ export function getTransporter() {
       user,
       pass,
     },
-    connectionTimeout: 10000, // 10 seconds
+    connectionTimeout: 10000,
     greetingTimeout: 10000,
     socketTimeout: 15000,
     tls: {
@@ -39,36 +52,61 @@ export function getTransporter() {
   return transporter;
 }
 
-// Server startup or diagnostic connectivity check
+/**
+ * Diagnostic verify helper
+ */
 export async function verifyMailer() {
+  const resend = getResendClient();
+  if (resend) {
+    try {
+      const domains = await resend.domains.list();
+      if (domains.error) {
+        console.error("❌ Resend API verification error:", domains.error.message);
+        return false;
+      }
+      console.log("✉️ Mailer ready: Resend API authenticated successfully over HTTPS (Port 443)");
+      return true;
+    } catch (error) {
+      console.error("❌ Resend verification failed:", error.message);
+      return false;
+    }
+  }
+
   try {
     const mailer = getTransporter();
     await mailer.verify();
-    console.log("✉️ Mailer ready: Brevo SMTP connection verified successfully on port 2525");
+    console.log("✉️ Mailer ready: SMTP connection verified successfully on port 2525");
     return true;
   } catch (error) {
     console.error("❌ Mailer configuration / connectivity failed:", error.message);
-    if (error.code === "ECONNREFUSED" || error.code === "ETIMEDOUT") {
-      console.error(
-        "ℹ️ Render Free note: Outbound SMTP ports 25, 465, 587 are blocked on Render Free. " +
-        "Port 2525 is supported by Brevo. If port 2525 still fails on Render, consider using the Brevo Transactional Email REST API."
-      );
-    }
     return false;
   }
 }
 
 /* ─────────────────────────────────────────────
-   Email templates
+   Sender Address Helper
 ───────────────────────────────────────────── */
 
 function getFromAddress() {
-  if (process.env.EMAIL_FROM && process.env.EMAIL_FROM.trim()) {
-    return process.env.EMAIL_FROM.trim();
+  const configured = (process.env.EMAIL_FROM || "").trim();
+
+  // If using Resend, unverified domains (like gmail.com) will fail Resend's policy.
+  // Use onboarding@resend.dev until a verified custom domain is configured in Resend.
+  if (process.env.RESEND_API_KEY) {
+    if (!configured || configured.includes("@gmail.com") || configured.includes("@yahoo.com")) {
+      return "RentKaroo <onboarding@resend.dev>";
+    }
+    return configured;
   }
+
+  if (configured) return configured;
   const user = (process.env.SMTP_USER || process.env.EMAIL_USER || "").trim();
   return `"RentKaroo" <${user || "noreply@rentkaroo.com"}>`;
 }
+
+/* ─────────────────────────────────────────────
+   Email Templates
+───────────────────────────────────────────── */
 
 function baseTemplate(title, bodyHtml) {
   const appName = process.env.APP_NAME || "RentKaroo";
@@ -121,7 +159,6 @@ function baseTemplate(title, bodyHtml) {
 </html>`.trim();
 }
 
-/** Password Reset Link Template */
 export function passwordResetTemplate({ name, resetUrl, expiresInMinutes = 15 }) {
   const greeting = name ? `Hi ${name},` : "Hello,";
   const body = `
@@ -161,7 +198,6 @@ export function passwordResetTemplate({ name, resetUrl, expiresInMinutes = 15 })
   return baseTemplate("Reset your RentKaroo password", body);
 }
 
-/** OTP email — registration / email verification */
 export function otpVerifyTemplate({ name, otp, expiresInMinutes = 10 }) {
   const body = `
     <h2 style="margin:0 0 8px;font-size:22px;color:#111827;">Verify your email</h2>
@@ -185,7 +221,6 @@ export function otpVerifyTemplate({ name, otp, expiresInMinutes = 10 }) {
   return baseTemplate("Verify your email", body);
 }
 
-/** OTP email — forgot password / reset (legacy OTP compatibility) */
 export function otpResetTemplate({ name, otp, expiresInMinutes = 10 }) {
   const body = `
     <h2 style="margin:0 0 8px;font-size:22px;color:#111827;">Reset your password</h2>
@@ -210,15 +245,44 @@ export function otpResetTemplate({ name, otp, expiresInMinutes = 10 }) {
 }
 
 /* ─────────────────────────────────────────────
-   Send helpers
+   Unified Email Dispatcher (Resend API -> Nodemailer)
 ───────────────────────────────────────────── */
 
-export async function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinutes = 15 }) {
-  const mailer = getTransporter();
+async function dispatchEmail({ to, subject, html }) {
+  const resend = getResendClient();
   const from = getFromAddress();
 
-  await mailer.sendMail({
+  if (resend) {
+    const { data, error } = await resend.emails.send({
+      from,
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      console.error("❌ Resend API delivery error:", error.message);
+      throw new Error(`Email delivery failed: ${error.message}`);
+    }
+
+    console.log(`✉️ Email successfully delivered via Resend API to ${to} (ID: ${data?.id})`);
+    return data;
+  }
+
+  // Fallback to Nodemailer SMTP
+  const mailer = getTransporter();
+  const result = await mailer.sendMail({
     from,
+    to,
+    subject,
+    html,
+  });
+  console.log(`✉️ Email delivered via SMTP to ${to} (ID: ${result?.messageId})`);
+  return result;
+}
+
+export async function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinutes = 15 }) {
+  return dispatchEmail({
     to,
     subject: "Reset your RentKaroo password",
     html: passwordResetTemplate({ name, resetUrl, expiresInMinutes }),
@@ -226,11 +290,7 @@ export async function sendPasswordResetEmail({ to, name, resetUrl, expiresInMinu
 }
 
 export async function sendOtpVerifyEmail({ to, name, otp, expiresInMinutes = 10 }) {
-  const mailer = getTransporter();
-  const from = getFromAddress();
-
-  await mailer.sendMail({
-    from,
+  return dispatchEmail({
     to,
     subject: `${otp} is your verification code`,
     html: otpVerifyTemplate({ name, otp, expiresInMinutes }),
@@ -238,11 +298,7 @@ export async function sendOtpVerifyEmail({ to, name, otp, expiresInMinutes = 10 
 }
 
 export async function sendOtpResetEmail({ to, name, otp, expiresInMinutes = 10 }) {
-  const mailer = getTransporter();
-  const from = getFromAddress();
-
-  await mailer.sendMail({
-    from,
+  return dispatchEmail({
     to,
     subject: `${otp} is your password reset code`,
     html: otpResetTemplate({ name, otp, expiresInMinutes }),
